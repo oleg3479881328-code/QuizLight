@@ -127,6 +127,10 @@ export default function YouTubeScenePlayer({
           if (event.data === YT.PlayerState.PLAYING) {
             setIsPlaying(true)
             startTimeCheck()
+            try {
+              playerRef.current?.unMute()
+              playerRef.current?.setVolume(100)
+            } catch { /* ignore */ }
           } else if (event.data === YT.PlayerState.ENDED) {
             setIsPlaying(false)
             stopTimeCheck()
