@@ -2,7 +2,7 @@
 
 - Project: `QuizLight`
 - State date: `2026-06-03`
-- Last update: `2026-06-03` (добавлен project-specific backlog внешних идей для будущего развития)
+- Last update: `2026-06-03` (добавлен второй блок project-specific опыта: text learning, decks/chains, free core + paid AI, dollar pay-as-you-go, privacy storage, teacher referrals, multilingual UI)
 - State type: transfer-ready
 - Lifecycle position:
   - bootstrap completed
@@ -49,6 +49,16 @@
   - Source-Linked Card Standard
   - State Bridge Reasoning Pattern
   - Codex Bounded Execution Workflow
+  - Free Low-Cost MVP Market Validation
+  - Preserve local-first simplicity
+- Newly preserved product directions for later evaluation:
+  - text learning as a second source beside video
+  - decks, chains, and learning paths
+  - free core plus optional paid AI automation
+  - dollar balance pay-as-you-go billing without opaque credits
+  - local-first or user-owned storage positioned honestly as privacy
+  - teacher and tutor referral distribution
+  - multilingual UI architecture as a scaling tool
 
 # What Is Not Yet Decided
 
@@ -58,6 +68,11 @@
 - future card organization beyond a flat collection
 - whether translation suggestions should remain local, be removed, or be replaced with a real translation service
 - whether to expand the local translation suggestion bank or connect to a translation API
+- when text learning should enter execution scope
+- when decks should enter execution scope
+- whether pay-as-you-go billing should be Stripe-based or use another payment provider
+- whether user-owned cloud sync should be added after local-first validation
+- when interface localization should enter execution scope
 
 # Current Safe Next Action
 
@@ -90,6 +105,7 @@
 - **YouTube transcript integration:** do not remove the Vite dev proxy (`/api/youtube-transcript`) — it's required for CORS-free transcript fetching. Do not remove `parsedTranscript` state or `handleTranscriptLineClick` — they power the clickable transcript UX.
 - **YouTube Scene Player:** do not remove `playerKey` state — it enables player recreation on error. Keep the `cueVideoById` + `seekTo` + `playVideo` approach as primary, with `loadVideoById` as fallback.
 - Do not treat `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md` as automatic permission to broaden MVP scope.
+- Do not implement monetization, multilingual expansion, or user-owned cloud sync before core usage validation unless a concrete blocker or validated opportunity justifies the change.
 
 # Known Issues
 
