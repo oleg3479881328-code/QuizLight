@@ -207,10 +207,20 @@ function App() {
   const isEditing = editingId !== null
   const isFlipped = selectedCard ? flippedCardId === selectedCard.id : false
 
+  /** Abort pending transcript translation and increment request id to invalidate stale responses */
+  function invalidateTranscriptTranslation() {
+    transcriptAbortControllerRef.current?.abort()
+    transcriptAbortControllerRef.current = null
+    transcriptRequestIdRef.current += 1
+  }
+
   function updateDraft(field: keyof CardDraft, value: string | number | undefined) {
     setLastEditedField(field as keyof CardDraft)
     if (field === 'russian') {
       russianManualEditVersionRef.current += 1
+    }
+    if (field === 'english') {
+      invalidateTranscriptTranslation()
     }
     setDraft((current) => ({
       ...current,
@@ -219,20 +229,15 @@ function App() {
   }
 
   function applyEnglishSuggestion(value: string) {
-    setDraft((current) => ({
-      ...current,
-      english: value,
-    }))
+    updateDraft('english', value)
   }
 
   function applyRussianSuggestion(value: string) {
-    setDraft((current) => ({
-      ...current,
-      russian: value,
-    }))
+    updateDraft('russian', value)
   }
 
   function resetForm() {
+    invalidateTranscriptTranslation()
     setDraft(emptyDraft)
     setEditingId(null)
     setLastEditedField('russian')
@@ -240,6 +245,8 @@ function App() {
     setMatchCandidates([])
     setSelectedMatchIndex(null)
     setShowContextEditor(false)
+    setTranslationProvider(null)
+    setTranslationFallbackNote(null)
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
