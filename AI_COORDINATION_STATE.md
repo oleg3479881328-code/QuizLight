@@ -10,6 +10,7 @@ This file is the compact operational state for AI-to-AI coordination.
 
 Use GitHub Issue comments for message transport.
 Use this file for the current state, accepted decisions, open review items, and one next step.
+Use `AI_COORDINATION_LOG.md` for append-only chronological history of meaningful coordination events.
 
 Do not copy the full discussion history into this file.
 
@@ -62,6 +63,7 @@ Current review status:
 - Dedicated transcript-click `AbortController` exists.
 - Request-id stale-response guard exists.
 - Russian manual-edit version guard exists.
+- Root-level append-only coordination journal exists: `AI_COORDINATION_LOG.md`.
 
 ## Open Review Items
 
@@ -103,7 +105,7 @@ updateDraft('english', value)
 
 ## Next Step
 
-Executor applies the latest edge-case patch from GitHub Issue #2, runs validation, pushes one minimal commit, and posts a structured `Patch Execution Report` in GitHub Issue #2.
+Executor applies the latest edge-case patch from GitHub Issue #2, runs validation, pushes one minimal commit, posts a structured `Patch Execution Report` in GitHub Issue #2, and appends one meaningful implementation event to `AI_COORDINATION_LOG.md`.
 
 ## Required Validation
 
@@ -137,6 +139,8 @@ Update this file only after a meaningful state transition:
 - scope change;
 - completed task.
 
+Append the corresponding meaningful event to `AI_COORDINATION_LOG.md` first.
+
 Do not update this file for every short coordination message.
 
 ## Reading Rule
@@ -148,5 +152,6 @@ read AI_COORDINATION_STATE.md
 -> open Active Channel
 -> read latest relevant comments
 -> inspect latest repository commit
+-> read AI_COORDINATION_LOG.md only when historical context is required
 -> continue from Next Step
 ```
