@@ -99,7 +99,9 @@ function App() {
   // Translation state
   const [isTranslating, setIsTranslating] = useState<'ru-to-en' | 'en-to-ru' | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const transcriptAbortControllerRef = useRef<AbortController | null>(null)
   const [translationProvider, setTranslationProvider] = useState<'azure' | 'local-fallback' | null>(null)
+  const [translationFallbackNote, setTranslationFallbackNote] = useState<string | null>(null)
 
   // Dictionary state
   const [dictionaryWord, setDictionaryWord] = useState('')
@@ -635,6 +637,11 @@ function App() {
 
   /** Click a transcript line → fill the card with that phrase + context */
   async function handleTranscriptLineClick(entry: TranscriptEntry, index: number, transcript: TranscriptEntry[]) {
+    // Cancel any in-flight transcript translation request
+    transcriptAbortControllerRef.current?.abort()
+    const controller = new AbortController()
+    transcriptAbortControllerRef.current = controller
+
     // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for Azure
     const window = extractContextWindow(transcript, index)
     const senseBlock = generateSenseBlock({
@@ -671,18 +678,27 @@ function App() {
     setTranscriptError(null)
 
     // 2. Try async EN→RU translation via Azure (with local fallback)
-    const translationResult = await translateText(entry.text, 'en', 'ru')
+    const translationResult = await translateText(entry.text, 'en', 'ru', controller.signal)
+    if (controller.signal.aborted) return
+
     const autoRussian = translationResult.ok ? translationResult.data.text : ''
     const provider = translationResult.ok ? translationResult.data.provider : 'local-fallback'
 
     // 3. Race-condition check: skip if english changed or russian was manually edited
+    let applied = false
     setDraft((current) => {
       if (current.english !== clickedPhrase) return current
-      if (current.russian !== russianBeforeRequest && current.russian.trim() !== '') return current
+      // P0 fix: if user cleared the field (russian === ''), still overwrite
+      if (current.russian !== russianBeforeRequest) return current
+      applied = true
       return { ...current, russian: autoRussian }
     })
 
-    setTranslationProvider(provider)
+    // P0 fix: only update provider label when translation was actually accepted
+    if (applied) {
+      setTranslationProvider(provider)
+      setTranslationFallbackNote(provider === 'local-fallback' ? 'Azure Translator недоступен — использована локальная подсказка.' : null)
+    }
   }
 
   // ─── Translation handlers ─────────────────────────────────────────────────
@@ -919,6 +935,9 @@ function App() {
                       {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
                     </span>
                   ) : null}
+                  {translationFallbackNote ? (
+                    <span className="fallback-note">{translationFallbackNote}</span>
+                  ) : null}
                 </div>
               </label>
 
@@ -967,6 +986,9 @@ function App() {
                     <span className="provider-label">
                       {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
                     </span>
+                  ) : null}
+                  {translationFallbackNote ? (
+                    <span className="fallback-note">{translationFallbackNote}</span>
                   ) : null}
                 </div>
               </label>

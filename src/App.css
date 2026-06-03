@@ -1566,10 +1566,31 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .translate-button-row .translate-button {
   margin-top: 0;
   width: auto;
   flex-shrink: 0;
+}
+
+/* ─── Fallback note ──────────────────────────────────────────────────────── */
+
+.fallback-note {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(218, 54, 51, 0.08);
+  border: 1px solid rgba(218, 54, 51, 0.2);
+  color: #da3633;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .fallback-note {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.25);
+  color: #f85149;
 }
