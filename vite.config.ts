@@ -21,14 +21,16 @@ export default defineConfig({
 
             const transcript = await YoutubeTranscript.fetchTranscript(videoId)
 
+            // Normalize timings: detect if offset is in milliseconds or seconds
+            const normalized = transcript.map((entry) => {
+              const shouldConvertFromMs = entry.offset > 1000 || entry.duration > 100
+              const start = shouldConvertFromMs ? entry.offset / 1000 : entry.offset
+              const duration = shouldConvertFromMs ? entry.duration / 1000 : entry.duration
+              return { text: entry.text, start, end: start + duration }
+            })
+
             res.setHeader('Content-Type', 'application/json; charset=utf-8')
-            res.end(JSON.stringify(
-              transcript.map((entry) => ({
-                text: entry.text,
-                start: entry.offset / 1000,
-                end: (entry.offset + entry.duration) / 1000,
-              })),
-            ))
+            res.end(JSON.stringify(normalized))
           } catch (error) {
             res.statusCode = 500
             res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }))

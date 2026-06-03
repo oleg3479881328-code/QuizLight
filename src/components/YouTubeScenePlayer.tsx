@@ -152,6 +152,18 @@ export default function YouTubeScenePlayer({
 
   const startTimeCheck = useCallback(() => {
     stopTimeCheck()
+
+    // Защита: если таймкоды некорректные, не запускаем авто-остановку
+    const sceneDuration = sceneEndSeconds - sceneStartSeconds
+    if (sceneEndSeconds <= sceneStartSeconds || sceneDuration < 1) {
+      console.warn('YouTubeScenePlayer: некорректные таймкоды сцены, авто-остановка отключена', {
+        sceneStartSeconds,
+        sceneEndSeconds,
+        sceneDuration,
+      })
+      return
+    }
+
     checkIntervalRef.current = window.setInterval(() => {
       if (!playerRef.current) return
       try {
@@ -165,7 +177,7 @@ export default function YouTubeScenePlayer({
         // ignore
       }
     }, 200)
-  }, [sceneEndSeconds])
+  }, [sceneEndSeconds, sceneStartSeconds])
 
   function stopTimeCheck() {
     if (checkIntervalRef.current !== null) {
@@ -177,6 +189,13 @@ export default function YouTubeScenePlayer({
   // === API-режим: Play Scene ===
   function playApiScene() {
     if (!playerRef.current || !videoId) return
+
+    console.log('YouTube scene playback diagnostic', {
+      videoId,
+      sceneStartSeconds,
+      sceneEndSeconds,
+      duration: sceneEndSeconds - sceneStartSeconds,
+    })
 
     setPlayerError(null)
     setIsPlaying(false)

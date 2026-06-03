@@ -448,15 +448,20 @@ function App() {
     try {
       const transcript = await YoutubeTranscript.fetchTranscript(videoId)
 
-      const transcriptJson = JSON.stringify(
-        transcript.map((entry) => ({
-          text: entry.text,
-          start: entry.offset / 1000,
-          end: (entry.offset + entry.duration) / 1000,
-        })),
-        null,
-        2,
-      )
+      // Normalize timings: detect if offset is in milliseconds or seconds
+      const normalizedTranscript = transcript.map((entry) => {
+        const shouldConvertFromMs = entry.offset > 1000 || entry.duration > 100
+        const start = shouldConvertFromMs ? entry.offset / 1000 : entry.offset
+        const duration = shouldConvertFromMs ? entry.duration / 1000 : entry.duration
+        return { text: entry.text, start, end: start + duration }
+      })
+
+      console.log('Transcript timing diagnostic', {
+        raw: transcript.slice(0, 3),
+        normalized: normalizedTranscript.slice(0, 3),
+      })
+
+      const transcriptJson = JSON.stringify(normalizedTranscript, null, 2)
 
       updateDraft('transcriptJson', transcriptJson)
       updateDraft('transcriptSource', youtubeUrl)
