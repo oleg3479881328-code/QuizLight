@@ -18,6 +18,19 @@ type Props = {
   phraseEndSeconds: number
 }
 
+/**
+ * YouTube Scene Player
+ *
+ * Использует два подхода:
+ * 1. **<iframe> с start/end в URL** — основной, самый надёжный.
+ *    YouTube сам обрезает видео по параметрам start и end.
+ *    При каждом нажатии "Play Scene" / "Replay" React пересоздаёт iframe
+ *    через key — никакого IFrame API, никакой Error 5.
+ *
+ * 2. **IFrame API** — запасной, для точного контроля (таймлайн, пауза).
+ *    Использует правильную последовательность: mute() → stopVideo() → loadVideoById()
+ *    чтобы избежать Error 5 (HTML5 player error).
+ */
 export default function YouTubeScenePlayer({
   youtubeUrl,
   sceneStartSeconds,
@@ -25,6 +38,14 @@ export default function YouTubeScenePlayer({
   phraseStartSeconds,
   phraseEndSeconds,
 }: Props) {
+  const videoId = extractYoutubeId(youtubeUrl)
+
+  // === Режим: iframe (основной) ===
+  const [useIframe, setUseIframe] = useState(true)
+  const [iframeKey, setIframeKey] = useState(0)
+  const [iframePlaying, setIframePlaying] = useState(false)
+
+  // === Режим: IFrame API (запасной) ===
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
   const checkIntervalRef = useRef<number | null>(null)
@@ -34,17 +55,14 @@ export default function YouTubeScenePlayer({
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [playerKey, setPlayerKey] = useState(0) // forces re-creation
 
-  const videoId = extractYoutubeId(youtubeUrl)
-
-  // Load IFrame API
+  // Load IFrame API (только если переключились на API-режим)
   useEffect(() => {
+    if (useIframe) return
     if (window.YT?.Player) {
       setApiReady(true)
       return
     }
-
     if (document.getElementById('youtube-iframe-api')) return
 
     const tag = document.createElement('script')
@@ -56,7 +74,7 @@ export default function YouTubeScenePlayer({
     window.onYouTubeIframeAPIReady = () => {
       setApiReady(true)
     }
-  }, [])
+  }, [useIframe])
 
   // Destroy player on unmount
   useEffect(() => {
@@ -69,11 +87,11 @@ export default function YouTubeScenePlayer({
     }
   }, [])
 
-  // Create player when API is ready or when playerKey changes
+  // Create IFrame API player
   useEffect(() => {
+    if (useIframe) return
     if (!apiReady || !videoId || !containerRef.current) return
 
-    // Destroy existing player if any
     if (playerRef.current) {
       try { playerRef.current.destroy() } catch { /* ignore */ }
       playerRef.current = null
@@ -112,8 +130,6 @@ export default function YouTubeScenePlayer({
           } else if (event.data === YT.PlayerState.ENDED) {
             setIsPlaying(false)
             stopTimeCheck()
-          } else if (event.data === YT.PlayerState.CUED) {
-            // Video is cued and ready to play
           } else {
             setIsPlaying(false)
             stopTimeCheck()
@@ -121,9 +137,8 @@ export default function YouTubeScenePlayer({
         },
         onError: (event: any) => {
           console.warn('YouTube player error:', event.data)
-          // Error 5 (HTML5 player error) - recreate player on next play attempt
           if (event.data === 5 || event.data === 150) {
-            setPlayerError('Ошибка плеера. Нажмите "Play Scene" для повторной попытки.')
+            setPlayerError('Ошибка HTML5-плеера. Попробуйте iframe-режим.')
             setPlayerReady(false)
           } else if (event.data === 2) {
             setPlayerError('Неверный ID видео.')
@@ -136,7 +151,7 @@ export default function YouTubeScenePlayer({
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiReady, videoId, playerKey])
+  }, [apiReady, videoId, useIframe])
 
   const startTimeCheck = useCallback(() => {
     stopTimeCheck()
@@ -145,14 +160,12 @@ export default function YouTubeScenePlayer({
       try {
         const time = playerRef.current.getCurrentTime()
         setCurrentTime(time)
-
-        // Auto-stop at scene end
         if (time >= sceneEndSeconds) {
           playerRef.current.stopVideo()
           stopTimeCheck()
         }
       } catch {
-        // Player might not be ready
+        // ignore
       }
     }, 200)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,39 +178,47 @@ export default function YouTubeScenePlayer({
     }
   }
 
-  function playScene() {
+  // === iframe-режим: воспроизведение ===
+  function playIframeScene() {
+    setIframeKey((k) => k + 1)
+    setIframePlaying(true)
+  }
+
+  // === IFrame API-режим: воспроизведение ===
+  function playApiScene() {
     if (!playerRef.current || !videoId) return
 
     setPlayerError(null)
     setIsPlaying(false)
     stopTimeCheck()
 
-    // If player is not ready, recreate it
     if (!playerReady) {
-      setPlayerKey((k) => k + 1)
+      // recreate player
+      setPlayerReady(false)
+      if (playerRef.current) {
+        try { playerRef.current.destroy() } catch { /* ignore */ }
+        playerRef.current = null
+      }
+      // Re-trigger creation effect
+      setApiReady(false)
+      setTimeout(() => setApiReady(true), 100)
       return
     }
 
     try {
-      // Use cueVideoById first (more reliable than loadVideoById for replay)
-      playerRef.current.cueVideoById({
+      // Правильная последовательность для избежания Error 5:
+      // mute() → stopVideo() → loadVideoById() → unMute()
+      playerRef.current.mute()
+      playerRef.current.stopVideo()
+      playerRef.current.loadVideoById({
         videoId,
         startSeconds: sceneStartSeconds,
+        endSeconds: sceneEndSeconds,
       })
-
-      // Small delay then play
-      setTimeout(() => {
-        try {
-          playerRef.current.seekTo(sceneStartSeconds, true)
-          playerRef.current.playVideo()
-        } catch {
-          // If this fails, recreate the player
-          setPlayerKey((k) => k + 1)
-        }
-      }, 200)
+      // unMute сработает в onStateChange когда видео начнёт играть
     } catch (err) {
-      console.warn('playScene failed, recreating player:', err)
-      setPlayerKey((k) => k + 1)
+      console.warn('playApiScene failed:', err)
+      setPlayerError('Ошибка воспроизведения. Переключитесь на iframe-режим.')
     }
   }
 
@@ -210,6 +231,15 @@ export default function YouTubeScenePlayer({
     }
   }
 
+  function switchToApiMode() {
+    setUseIframe(false)
+  }
+
+  function switchToIframeMode() {
+    setUseIframe(true)
+    setPlayerError(null)
+  }
+
   if (!videoId) {
     return (
       <div className="youtube-error">
@@ -218,6 +248,88 @@ export default function YouTubeScenePlayer({
     )
   }
 
+  // === iframe-режим ===
+  if (useIframe) {
+    const iframeSrc = `https://www.youtube.com/embed/${videoId}`
+      + `?start=${Math.floor(sceneStartSeconds)}`
+      + `&end=${Math.floor(sceneEndSeconds)}`
+      + `&autoplay=1`
+      + `&rel=0`
+      + `&modestbranding=1`
+      + `&iv_load_policy=3`
+
+    return (
+      <div className="youtube-scene-player">
+        <div className="youtube-player-container">
+          {iframePlaying ? (
+            <iframe
+              key={iframeKey}
+              width="100%"
+              height="100%"
+              src={iframeSrc}
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              style={{ border: 'none' }}
+            />
+          ) : (
+            <div className="youtube-loading">
+              Нажмите «Play Scene», чтобы воспроизвести
+            </div>
+          )}
+        </div>
+
+        <div className="youtube-controls">
+          <button
+            type="button"
+            className="youtube-play-button"
+            onClick={playIframeScene}
+          >
+            {iframePlaying ? '↺ Повторить' : '▶ Play Scene'}
+          </button>
+        </div>
+
+        <div className="youtube-timeline">
+          <div className="youtube-timeline-bar">
+            <div
+              className="youtube-timeline-segment scene"
+              style={{
+                left: `${(sceneStartSeconds / (sceneEndSeconds + 10)) * 100}%`,
+                width: `${((sceneEndSeconds - sceneStartSeconds) / (sceneEndSeconds + 10)) * 100}%`,
+              }}
+            >
+              <span className="youtube-timeline-label">Scene</span>
+            </div>
+            <div
+              className="youtube-timeline-segment phrase"
+              style={{
+                left: `${(phraseStartSeconds / (sceneEndSeconds + 10)) * 100}%`,
+                width: `${((phraseEndSeconds - phraseStartSeconds) / (sceneEndSeconds + 10)) * 100}%`,
+              }}
+            >
+              <span className="youtube-timeline-label">Phrase</span>
+            </div>
+          </div>
+          <div className="youtube-timeline-times">
+            <span>{formatTime(sceneStartSeconds)}</span>
+            <span>{formatTime(sceneEndSeconds)}</span>
+          </div>
+        </div>
+
+        <div className="youtube-mode-switch">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={switchToApiMode}
+          >
+            🔄 IFrame API (точный контроль)
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // === IFrame API-режим ===
   if (playerError) {
     return (
       <div className="youtube-error">
@@ -225,12 +337,9 @@ export default function YouTubeScenePlayer({
         <button
           type="button"
           className="youtube-retry-button"
-          onClick={() => {
-            setPlayerError(null)
-            setPlayerKey((k) => k + 1)
-          }}
+          onClick={switchToIframeMode}
         >
-          🔄 Перезагрузить плеер
+          🔄 Вернуться на iframe-режим
         </button>
       </div>
     )
@@ -255,7 +364,7 @@ export default function YouTubeScenePlayer({
         <button
           type="button"
           className="youtube-play-button"
-          onClick={isPlaying ? pauseVideo : playScene}
+          onClick={isPlaying ? pauseVideo : playApiScene}
           disabled={!playerReady}
         >
           {isPlaying ? '⏸ Пауза' : '▶ Play Scene'}
@@ -264,7 +373,7 @@ export default function YouTubeScenePlayer({
         <button
           type="button"
           className="youtube-replay-button"
-          onClick={playScene}
+          onClick={playApiScene}
           disabled={!playerReady}
         >
           🔄 Replay
@@ -296,6 +405,16 @@ export default function YouTubeScenePlayer({
           <span>{formatTime(sceneStartSeconds)}</span>
           <span>{formatTime(sceneEndSeconds)}</span>
         </div>
+      </div>
+
+      <div className="youtube-mode-switch">
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={switchToIframeMode}
+        >
+          🔄 iframe (стабильный режим)
+        </button>
       </div>
     </div>
   )

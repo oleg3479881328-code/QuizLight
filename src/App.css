@@ -1058,6 +1058,22 @@
   box-shadow: 0 8px 20px rgba(36, 122, 255, 0.2);
 }
 
+/* Mode switch */
+.youtube-mode-switch {
+  display: flex;
+  justify-content: center;
+}
+
+.youtube-mode-switch .ghost-button {
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  opacity: 0.7;
+}
+
+.youtube-mode-switch .ghost-button:hover {
+  opacity: 1;
+}
+
 /* Timeline */
 .youtube-timeline {
   display: grid;
