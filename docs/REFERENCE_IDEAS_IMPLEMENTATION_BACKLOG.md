@@ -338,6 +338,234 @@ Useful for UI iteration. Do not build a custom visual-canvas platform.
 
 Remember as research source. Do not automate monitoring now.
 
+---
+
+### 13. Text Learning Source
+
+#### Idea
+
+Добавить работу с текстом как второй основной источник карточек рядом с видео.
+
+#### Potential QuizLight use
+
+Пользователь загружает электронную книгу, статью или другой текст и нажимает на слово, выражение или предложение.
+
+Система формирует карточку с:
+
+- исходной фразой;
+- переводом;
+- контекстом до и после;
+- объяснением смысла;
+- ссылкой на источник;
+- возможностью сохранить карточку в набор.
+
+#### Product value
+
+Сильная часть идеи не в переводе по клику, а в том, что текст и видео питают одну личную языковую базу пользователя.
+
+#### MVP status
+
+Preserve for near-future design. Do not broaden the current MVP automatically.
+
+---
+
+### 14. Decks, Chains And Learning Paths
+
+#### Idea
+
+Не хранить карточки только в одной общей куче.
+
+#### Potential QuizLight use
+
+Организация может развиваться по уровням:
+
+- card — отдельная карточка;
+- deck — набор карточек;
+- chain — последовательность наборов;
+- course или learning path — учебный путь из наборов, видео, текстов и упражнений.
+
+Одна карточка может входить в несколько наборов без дублирования.
+
+#### Product value
+
+Это превращает QuizLight из плоской коллекции карточек в систему обучения через реальные источники контента.
+
+#### MVP status
+
+Decks are useful near-term. Chains and learning paths are later-stage product layers.
+
+---
+
+### 15. Free Core Plus Paid AI Layer
+
+#### Idea
+
+Бесплатный продукт должен быть реально полезным, а платный слой должен продавать не доступ к карточкам, а экономию времени и качество результата.
+
+#### Potential QuizLight use
+
+Бесплатно:
+
+- создание карточек;
+- загрузка текста;
+- базовый перевод;
+- контекст до и после;
+- наборы;
+- локальное хранение;
+- повторение.
+
+Платно по фактическому использованию:
+
+- situational analysis — ситуационный разбор;
+- semantic explanation — объяснение смысла;
+- grammar and idiom explanation — разбор грамматики и идиом;
+- AI-generated image — автоматически сгенерированная учебная иллюстрация;
+- AI tutor — ИИ-репетитор;
+- автоматическая обработка больших фрагментов текста или видео.
+
+#### Product value
+
+Пользователь платит не за наличие ИИ, а за устранение лишних действий и за более качественный учебный результат.
+
+#### MVP status
+
+Monetization direction for later validation. Do not build billing into the current free MVP.
+
+---
+
+### 16. Dollar Balance Pay-As-You-Go Billing
+
+#### Idea
+
+Не использовать непрозрачные кредиты как основную пользовательскую единицу. Показывать реальные доллары и центы.
+
+#### Potential QuizLight use
+
+Пользователь пополняет баланс, например, на `$5`, `$10` или `$20`.
+
+После каждой платной AI-операции система списывает фактическую стоимость из долларового баланса и показывает понятную историю расходов.
+
+Пример пользовательской логики:
+
+- AI-анализ фразы — доли цента;
+- генерация иллюстрации — несколько центов;
+- AI tutor — списание по времени или объему использования.
+
+#### Product value
+
+Прозрачность снижает недоверие. Пользователь видит, что за месяц он получил много результата за небольшую сумму.
+
+#### MVP status
+
+Later monetization candidate. Validate willingness to use the product before implementation.
+
+---
+
+### 17. User-Owned Or Local-First Storage As Privacy
+
+#### Idea
+
+Хранить пользовательские карточки, библиотеку, прогресс и настройки локально или в хранилище, принадлежащем пользователю.
+
+#### Potential QuizLight use
+
+Возможная гибридная модель:
+
+- пользовательская библиотека хранится локально или в подключенном пользователем storage;
+- на сервер отправляется только минимальный фрагмент, нужный для AI-обработки;
+- результат возвращается пользователю и сохраняется обратно в его слой хранения.
+
+#### Product value
+
+Это не только экономия инфраструктурных затрат, но и честное позиционирование приватности:
+
+`Ваш язык принадлежит вам.`
+
+#### Risks
+
+- потеря данных при очистке браузера;
+- сложность синхронизации между устройствами;
+- необходимость прозрачного объяснения, какие данные временно уходят на AI-обработку.
+
+#### MVP status
+
+Local-first is already aligned with current v0. User-owned cloud sync is a later design option.
+
+---
+
+### 18. Teacher And Tutor Referral Distribution
+
+#### Idea
+
+Использовать преподавателей языков, репетиторов, языковые школы и авторов учебного контента как канал распространения.
+
+#### Potential QuizLight use
+
+Правильное предложение партнеру:
+
+- дать ученикам бесплатный полезный инструмент;
+- повысить ценность обучения;
+- позже получать долю от платных AI-операций учеников по реферальной ссылке.
+
+#### Product value
+
+Один преподаватель может приводить сразу группу мотивированных пользователей. Это потенциально сильнее хаотичной массовой рекламы на раннем этапе.
+
+#### MVP status
+
+Strong early marketing experiment after the free MVP is usable. Referral payouts can wait until monetization exists.
+
+---
+
+### 19. Multilingual Architecture And Interface
+
+#### Idea
+
+Разделить мультиязычный интерфейс и мультиязычную учебную логику.
+
+#### Potential QuizLight use
+
+- архитектура интерфейса должна быть готова к локализации с первого дня;
+- переводы UI можно генерировать быстро современными моделями;
+- добавление десятков языков обучения не должно автоматически входить в текущий MVP.
+
+#### Product value
+
+Локализация интерфейса может стать дешевым инструментом масштабирования по странам после появления признаков спроса.
+
+#### MVP status
+
+Prepare architecture for localization. Add languages only when they improve validation or scaling. Do not let easy translation work distract from the core study loop.
+
+---
+
+### 20. Free Low-Cost MVP Market Validation
+
+#### Idea
+
+Сначала выпустить бесплатную и максимально дешевую в поддержке версию, чтобы проверить реальный спрос до построения коммерческой системы.
+
+#### Core validation question
+
+Нужен ли людям QuizLight как способ изучать язык через собственный контент?
+
+#### What to measure
+
+- сколько пользователей реально создают карточки;
+- сколько карточек создается из видео;
+- сколько карточек создается из текста;
+- сколько пользователей возвращается через 7 дней;
+- сколько пользователей возвращается через 30 дней;
+- какие функции пользователи просят после реального использования.
+
+#### Product value
+
+Сначала подтверждается полезность продукта. Потом строятся billing, AI-функции и масштабирование.
+
+#### MVP status
+
+Use now as product strategy.
+
 ## Priority map
 
 ### Use now as lightweight rules
@@ -347,12 +575,18 @@ Remember as research source. Do not automate monitoring now.
 3. Source-Linked Card Standard.
 4. State Bridge Reasoning Pattern.
 5. Codex Bounded Execution Workflow.
+6. Free Low-Cost MVP Market Validation.
+7. Preserve local-first simplicity.
 
 ### Keep for near-future design
 
 1. Agent Artifact Workspace.
 2. External API Skill Gateway.
 3. Agentic Visual Canvas Workflow.
+4. Text Learning Source.
+5. Decks.
+6. Interface localization architecture.
+7. Teacher and tutor distribution experiment.
 
 ### Preserve for later, do not implement yet
 
@@ -360,6 +594,11 @@ Remember as research source. Do not automate monitoring now.
 2. Opportunity Graph Engine.
 3. Kanban Agent Orchestration Standard.
 4. Automated arXiv research pipeline.
+5. Chains and learning paths.
+6. Paid AI layer.
+7. Dollar balance pay-as-you-go billing.
+8. User-owned cloud sync.
+9. Full multilingual learning expansion.
 
 ## Hard boundary
 
