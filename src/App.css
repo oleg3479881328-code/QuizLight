@@ -1466,3 +1466,65 @@
   border: 1px solid var(--border);
   color: var(--text-soft);
 }
+
+/* ─── Provider label ─────────────────────────────────────────────────────── */
+
+.provider-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(36, 122, 255, 0.08);
+  color: var(--accent-strong);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .provider-label {
+  background: rgba(88, 166, 255, 0.12);
+}
+
+/* ─── Clickable dictionary words ─────────────────────────────────────────── */
+
+.dictionary-target-word-button {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(36, 122, 255, 0.3);
+  transition: text-decoration-color 150ms ease;
+}
+
+.dictionary-target-word-button:hover {
+  text-decoration-color: var(--accent-strong);
+}
+
+.dictionary-back-translation-button {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--accent-strong);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.dictionary-back-translation-button:hover {
+  background: rgba(36, 122, 255, 0.08);
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .dictionary-back-translation-button:hover {
+  background: rgba(88, 166, 255, 0.12);
+}

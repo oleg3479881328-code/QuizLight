@@ -8,21 +8,6 @@ import {
   getRussianSuggestions,
 } from '../suggestions'
 
-// ─── Configuration ───────────────────────────────────────────────────────────
-
-function getConfig() {
-  return {
-    endpoint: import.meta.env.AZURE_TRANSLATOR_ENDPOINT as string | undefined,
-    key: import.meta.env.AZURE_TRANSLATOR_KEY as string | undefined,
-    region: import.meta.env.AZURE_TRANSLATOR_REGION as string | undefined,
-  }
-}
-
-function isConfigured(): boolean {
-  const cfg = getConfig()
-  return !!(cfg.endpoint && cfg.key && cfg.region)
-}
-
 // ─── Translate ───────────────────────────────────────────────────────────────
 
 /**
@@ -47,33 +32,22 @@ export async function translateText(
     return { ok: false, error: { code: 400, message: 'Empty text' } }
   }
 
-  // Try Azure via middleware
-  if (isConfigured()) {
-    try {
-      const body = [{ Text: trimmed }]
-      const params = new URLSearchParams({ 'api-version': '3.0', to })
-      if (from && from !== 'auto') {
-        params.set('from', from)
-      }
+  // Always try Azure via middleware — middleware returns 503 if not configured
+  try {
+    const body = [{ Text: trimmed }]
+    const params = new URLSearchParams({ 'api-version': '3.0', to })
+    if (from && from !== 'auto') {
+      params.set('from', from)
+    }
 
-      const res = await fetch(`/api/translate?${params.toString()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-      })
+    const res = await fetch(`/api/translate?${params.toString()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null)
-        return {
-          ok: false,
-          error: {
-            code: res.status,
-            message: errBody?.error?.message ?? `HTTP ${res.status}`,
-          },
-        }
-      }
-
+    if (res.ok) {
       const data = await res.json()
       const translation = data[0]
       return {
@@ -84,13 +58,16 @@ export async function translateText(
           confidence: translation.detectedLanguage?.score,
         },
       }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return { ok: false, error: { code: 0, message: 'Aborted' } }
-      }
-      // Fall through to local fallback
-      console.warn('Azure translate failed, falling back to local:', err)
     }
+
+    // Non-2xx response: log and fall through to local fallback
+    console.warn(`Azure translate returned ${res.status}, falling back to local`)
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return { ok: false, error: { code: 0, message: 'Aborted' } }
+    }
+    // Network error: fall through to local fallback
+    console.warn('Azure translate failed, falling back to local:', err)
   }
 
   // Local fallback
@@ -121,34 +98,23 @@ export async function dictionaryLookup(
     return { ok: false, error: { code: 400, message: 'Empty word' } }
   }
 
-  // Try Azure via middleware
-  if (isConfigured()) {
-    try {
-      const body = [{ Text: trimmed }]
-      const params = new URLSearchParams({
-        'api-version': '3.0',
-        from,
-        to,
-      })
+  // Always try Azure via middleware — middleware returns 503 if not configured
+  try {
+    const body = [{ Text: trimmed }]
+    const params = new URLSearchParams({
+      'api-version': '3.0',
+      from,
+      to,
+    })
 
-      const res = await fetch(`/api/dictionary-lookup?${params.toString()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-      })
+    const res = await fetch(`/api/dictionary-lookup?${params.toString()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => null)
-        return {
-          ok: false,
-          error: {
-            code: res.status,
-            message: errBody?.error?.message ?? `HTTP ${res.status}`,
-          },
-        }
-      }
-
+    if (res.ok) {
       const data = await res.json()
       const entry = data[0]
       return {
@@ -175,12 +141,16 @@ export async function dictionaryLookup(
           ),
         },
       }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return { ok: false, error: { code: 0, message: 'Aborted' } }
-      }
-      console.warn('Azure dictionary lookup failed, falling back to local:', err)
     }
+
+    // Non-2xx response: log and fall through to local fallback
+    console.warn(`Azure dictionary lookup returned ${res.status}, falling back to local`)
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return { ok: false, error: { code: 0, message: 'Aborted' } }
+    }
+    // Network error: fall through to local fallback
+    console.warn('Azure dictionary lookup failed, falling back to local:', err)
   }
 
   // Local fallback
@@ -277,3 +247,4 @@ function localDictionaryLookup(
     },
   }
 }
+

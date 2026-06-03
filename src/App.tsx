@@ -633,17 +633,33 @@ function App() {
   }
 
   /** Click a transcript line → fill the card with that phrase + context */
-  function handleTranscriptLineClick(entry: TranscriptEntry, index: number, transcript: TranscriptEntry[]) {
-    // Auto-fill russian from suggestions
-    const russianSuggestions = getRussianSuggestions(entry.text)
-    const autoRussian = russianSuggestions.length > 0 ? russianSuggestions[0] : ''
-
+  async function handleTranscriptLineClick(entry: TranscriptEntry, index: number, transcript: TranscriptEntry[]) {
     // Fill english field with the clicked phrase
     setDraft((current) => ({
       ...current,
       english: entry.text,
-      russian: autoRussian || current.russian,
     }))
+
+    // Try async EN→RU translation via Azure (with local fallback)
+    const translationResult = await translateText(entry.text, 'en', 'ru')
+    const autoRussian = translationResult.ok ? translationResult.data.text : ''
+
+    if (autoRussian) {
+      setDraft((current) => ({
+        ...current,
+        russian: autoRussian,
+      }))
+    } else {
+      // Fallback to local suggestions
+      const localSuggestions = getRussianSuggestions(entry.text)
+      const localRussian = localSuggestions.length > 0 ? localSuggestions[0] : ''
+      if (localRussian) {
+        setDraft((current) => ({
+          ...current,
+          russian: localRussian,
+        }))
+      }
+    }
 
     // Build context window and sense block
     const window = extractContextWindow(transcript, index)
@@ -652,7 +668,7 @@ function App() {
       targetEntry: window.targetEntry,
       nextLines: window.nextLines,
       phrase: entry.text,
-      translation: draft.russian.trim(),
+      translation: autoRussian || '',
     })
 
     setDraft((current) => ({
@@ -905,6 +921,7 @@ function App() {
               {activeSuggestions ? (
                 <div className="suggestions-block">
                   <span className="suggestions-label">{activeSuggestions.label}</span>
+                  <span className="provider-label">Локальная подсказка</span>
                   <div className="suggestions-list">
                     {activeSuggestions.items.map((suggestion) => {
                       const isActive = activeSuggestions.activeValue === suggestion
@@ -1382,18 +1399,29 @@ function App() {
                       {dictionaryResult.translations.map((t, i) => (
                         <div key={i} className="dictionary-translation-row">
                           <span className="dictionary-pos-tag">{t.posTag}</span>
-                          <span className="dictionary-target-word">
+                          <button
+                            type="button"
+                            className="dictionary-target-word-button"
+                            onClick={() => setDictionaryWord(t.displayTarget)}
+                            title="Нажмите, чтобы искать это слово"
+                          >
                             {t.displayTarget}
-                          </span>
+                          </button>
                           <span className="dictionary-confidence">
                             {Math.round(t.confidence * 100)}%
                           </span>
                           {t.backTranslations && t.backTranslations.length > 0 ? (
                             <div className="dictionary-back-translations">
                               {t.backTranslations.slice(0, 3).map((bt, j) => (
-                                <span key={j} className="dictionary-back-translation">
+                                <button
+                                  key={j}
+                                  type="button"
+                                  className="dictionary-back-translation-button"
+                                  onClick={() => setDictionaryWord(bt.displayText)}
+                                  title="Нажмите, чтобы искать это слово"
+                                >
                                   {bt.displayText}
-                                </span>
+                                </button>
                               ))}
                             </div>
                           ) : null}
