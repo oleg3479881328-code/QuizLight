@@ -100,6 +100,8 @@ function App() {
   const [isTranslating, setIsTranslating] = useState<'ru-to-en' | 'en-to-ru' | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const transcriptAbortControllerRef = useRef<AbortController | null>(null)
+  const transcriptRequestIdRef = useRef(0)
+  const russianManualEditVersionRef = useRef(0)
   const [translationProvider, setTranslationProvider] = useState<'azure' | 'local-fallback' | null>(null)
   const [translationFallbackNote, setTranslationFallbackNote] = useState<string | null>(null)
 
@@ -207,6 +209,9 @@ function App() {
 
   function updateDraft(field: keyof CardDraft, value: string | number | undefined) {
     setLastEditedField(field as keyof CardDraft)
+    if (field === 'russian') {
+      russianManualEditVersionRef.current += 1
+    }
     setDraft((current) => ({
       ...current,
       [field]: value,
@@ -642,6 +647,10 @@ function App() {
     const controller = new AbortController()
     transcriptAbortControllerRef.current = controller
 
+    // Assign a unique request id for stale-response detection
+    const requestId = ++transcriptRequestIdRef.current
+    const russianVersionBeforeRequest = russianManualEditVersionRef.current
+
     // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for Azure
     const window = extractContextWindow(transcript, index)
     const senseBlock = generateSenseBlock({
@@ -652,9 +661,7 @@ function App() {
       translation: '', // translation will come async
     })
 
-    // Snapshot the current russian value for race-condition check
     const clickedPhrase = entry.text
-    const russianBeforeRequest = draft.russian
 
     setDraft((current) => ({
       ...current,
@@ -681,24 +688,25 @@ function App() {
     const translationResult = await translateText(entry.text, 'en', 'ru', controller.signal)
     if (controller.signal.aborted) return
 
+    // 3. Ref-based stale-response guard (not reliant on React updater sync execution)
+    if (requestId !== transcriptRequestIdRef.current) return
+    if (russianManualEditVersionRef.current !== russianVersionBeforeRequest) return
+
     const autoRussian = translationResult.ok ? translationResult.data.text : ''
     const provider = translationResult.ok ? translationResult.data.provider : 'local-fallback'
 
-    // 3. Race-condition check: skip if english changed or russian was manually edited
-    let applied = false
+    // 4. Apply draft and provider state at the same accepted point
     setDraft((current) => {
       if (current.english !== clickedPhrase) return current
-      // P0 fix: if user cleared the field (russian === ''), still overwrite
-      if (current.russian !== russianBeforeRequest) return current
-      applied = true
       return { ...current, russian: autoRussian }
     })
 
-    // P0 fix: only update provider label when translation was actually accepted
-    if (applied) {
-      setTranslationProvider(provider)
-      setTranslationFallbackNote(provider === 'local-fallback' ? 'Azure Translator недоступен — использована локальная подсказка.' : null)
-    }
+    setTranslationProvider(provider)
+    setTranslationFallbackNote(
+      provider === 'local-fallback'
+        ? 'Azure Translator недоступен — использована локальная подсказка.'
+        : null,
+    )
   }
 
   // ─── Translation handlers ─────────────────────────────────────────────────
@@ -722,9 +730,15 @@ function App() {
     if (result.ok) {
       setDraft((current) => ({ ...current, english: result.data.text }))
       setTranslationProvider(result.data.provider)
+      setTranslationFallbackNote(
+        result.data.provider === 'local-fallback'
+          ? 'Azure Translator недоступен — использована локальная подсказка.'
+          : null,
+      )
     } else {
       console.warn('Translation failed (RU→EN):', result.error.message)
       setTranslationProvider(null)
+      setTranslationFallbackNote(null)
     }
   }
 
@@ -747,9 +761,15 @@ function App() {
     if (result.ok) {
       setDraft((current) => ({ ...current, russian: result.data.text }))
       setTranslationProvider(result.data.provider)
+      setTranslationFallbackNote(
+        result.data.provider === 'local-fallback'
+          ? 'Azure Translator недоступен — использована локальная подсказка.'
+          : null,
+      )
     } else {
       console.warn('Translation failed (EN→RU):', result.error.message)
       setTranslationProvider(null)
+      setTranslationFallbackNote(null)
     }
   }
 
