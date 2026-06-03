@@ -56,6 +56,7 @@ export async function translateText(
           text: translation.translations[0].text,
           detectedLanguage: translation.detectedLanguage?.language,
           confidence: translation.detectedLanguage?.score,
+          provider: 'azure',
         },
       }
     }
@@ -122,6 +123,7 @@ export async function dictionaryLookup(
         data: {
           normalizedSource: entry.normalizedSource,
           displaySource: entry.displaySource,
+          provider: 'azure',
           translations: entry.translations.map(
             (t: {
               normalizedTarget: string
@@ -169,7 +171,7 @@ function localTranslate(
     if (suggestions.length > 0) {
       return {
         ok: true,
-        data: { text: suggestions[0] },
+        data: { text: suggestions[0], provider: 'local-fallback' },
       }
     }
   }
@@ -179,7 +181,7 @@ function localTranslate(
     if (suggestions.length > 0) {
       return {
         ok: true,
-        data: { text: suggestions[0] },
+        data: { text: suggestions[0], provider: 'local-fallback' },
       }
     }
   }
@@ -207,6 +209,7 @@ function localDictionaryLookup(
         data: {
           normalizedSource: word.toLowerCase(),
           displaySource: word,
+          provider: 'local-fallback',
           translations: suggestions.map((s) => ({
             normalizedTarget: s.toLowerCase(),
             displayTarget: s,
@@ -227,6 +230,7 @@ function localDictionaryLookup(
         data: {
           normalizedSource: word.toLowerCase(),
           displaySource: word,
+          provider: 'local-fallback',
           translations: suggestions.map((s) => ({
             normalizedTarget: s.toLowerCase(),
             displayTarget: s,
@@ -247,4 +251,3 @@ function localDictionaryLookup(
     },
   }
 }
-

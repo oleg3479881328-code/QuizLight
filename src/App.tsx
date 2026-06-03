@@ -99,6 +99,7 @@ function App() {
   // Translation state
   const [isTranslating, setIsTranslating] = useState<'ru-to-en' | 'en-to-ru' | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const [translationProvider, setTranslationProvider] = useState<'azure' | 'local-fallback' | null>(null)
 
   // Dictionary state
   const [dictionaryWord, setDictionaryWord] = useState('')
@@ -634,45 +635,23 @@ function App() {
 
   /** Click a transcript line → fill the card with that phrase + context */
   async function handleTranscriptLineClick(entry: TranscriptEntry, index: number, transcript: TranscriptEntry[]) {
-    // Fill english field with the clicked phrase
-    setDraft((current) => ({
-      ...current,
-      english: entry.text,
-    }))
-
-    // Try async EN→RU translation via Azure (with local fallback)
-    const translationResult = await translateText(entry.text, 'en', 'ru')
-    const autoRussian = translationResult.ok ? translationResult.data.text : ''
-
-    if (autoRussian) {
-      setDraft((current) => ({
-        ...current,
-        russian: autoRussian,
-      }))
-    } else {
-      // Fallback to local suggestions
-      const localSuggestions = getRussianSuggestions(entry.text)
-      const localRussian = localSuggestions.length > 0 ? localSuggestions[0] : ''
-      if (localRussian) {
-        setDraft((current) => ({
-          ...current,
-          russian: localRussian,
-        }))
-      }
-    }
-
-    // Build context window and sense block
+    // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for Azure
     const window = extractContextWindow(transcript, index)
     const senseBlock = generateSenseBlock({
       previousLines: window.previousLines,
       targetEntry: window.targetEntry,
       nextLines: window.nextLines,
       phrase: entry.text,
-      translation: autoRussian || '',
+      translation: '', // translation will come async
     })
+
+    // Snapshot the current russian value for race-condition check
+    const clickedPhrase = entry.text
+    const russianBeforeRequest = draft.russian
 
     setDraft((current) => ({
       ...current,
+      english: entry.text,
       phraseStartSeconds: window.phraseStartSeconds,
       phraseEndSeconds: window.phraseEndSeconds,
       sceneStartSeconds: window.sceneStartSeconds,
@@ -690,6 +669,20 @@ function App() {
 
     setShowContextEditor(true)
     setTranscriptError(null)
+
+    // 2. Try async EN→RU translation via Azure (with local fallback)
+    const translationResult = await translateText(entry.text, 'en', 'ru')
+    const autoRussian = translationResult.ok ? translationResult.data.text : ''
+    const provider = translationResult.ok ? translationResult.data.provider : 'local-fallback'
+
+    // 3. Race-condition check: skip if english changed or russian was manually edited
+    setDraft((current) => {
+      if (current.english !== clickedPhrase) return current
+      if (current.russian !== russianBeforeRequest && current.russian.trim() !== '') return current
+      return { ...current, russian: autoRussian }
+    })
+
+    setTranslationProvider(provider)
   }
 
   // ─── Translation handlers ─────────────────────────────────────────────────
@@ -712,8 +705,10 @@ function App() {
 
     if (result.ok) {
       setDraft((current) => ({ ...current, english: result.data.text }))
+      setTranslationProvider(result.data.provider)
     } else {
       console.warn('Translation failed (RU→EN):', result.error.message)
+      setTranslationProvider(null)
     }
   }
 
@@ -735,8 +730,10 @@ function App() {
 
     if (result.ok) {
       setDraft((current) => ({ ...current, russian: result.data.text }))
+      setTranslationProvider(result.data.provider)
     } else {
       console.warn('Translation failed (EN→RU):', result.error.message)
+      setTranslationProvider(null)
     }
   }
 
@@ -908,14 +905,21 @@ function App() {
                   placeholder="Например: Доброе утро"
                   rows={3}
                 />
-                <button
-                  type="button"
-                  className="translate-button"
-                  onClick={handleTranslateRuToEn}
-                  disabled={!draft.russian.trim() || isTranslating === 'ru-to-en'}
-                >
-                  {isTranslating === 'ru-to-en' ? '⏳ Перевод...' : '🌐 Перевести на английский'}
-                </button>
+                <div className="translate-button-row">
+                  <button
+                    type="button"
+                    className="translate-button"
+                    onClick={handleTranslateRuToEn}
+                    disabled={!draft.russian.trim() || isTranslating === 'ru-to-en'}
+                  >
+                    {isTranslating === 'ru-to-en' ? '⏳ Перевод...' : '🌐 Перевести на английский'}
+                  </button>
+                  {translationProvider && !isTranslating ? (
+                    <span className="provider-label">
+                      {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                    </span>
+                  ) : null}
+                </div>
               </label>
 
               {activeSuggestions ? (
@@ -950,14 +954,21 @@ function App() {
                   placeholder="For example: Good morning"
                   rows={3}
                 />
-                <button
-                  type="button"
-                  className="translate-button"
-                  onClick={handleTranslateEnToRu}
-                  disabled={!draft.english.trim() || isTranslating === 'en-to-ru'}
-                >
-                  {isTranslating === 'en-to-ru' ? '⏳ Перевод...' : '🌐 Перевести на русский'}
-                </button>
+                <div className="translate-button-row">
+                  <button
+                    type="button"
+                    className="translate-button"
+                    onClick={handleTranslateEnToRu}
+                    disabled={!draft.english.trim() || isTranslating === 'en-to-ru'}
+                  >
+                    {isTranslating === 'en-to-ru' ? '⏳ Перевод...' : '🌐 Перевести на русский'}
+                  </button>
+                  {translationProvider && !isTranslating ? (
+                    <span className="provider-label">
+                      {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                    </span>
+                  ) : null}
+                </div>
               </label>
 
               <label className="field" htmlFor={imageFieldId}>
@@ -1394,6 +1405,9 @@ function App() {
                       <span className="dictionary-normalized">
                         ({dictionaryResult.normalizedSource})
                       </span>
+                      <span className="provider-label">
+                        {dictionaryResult.provider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                      </span>
                     </div>
                     <div className="dictionary-translations">
                       {dictionaryResult.translations.map((t, i) => (
@@ -1406,6 +1420,14 @@ function App() {
                             title="Нажмите, чтобы искать это слово"
                           >
                             {t.displayTarget}
+                          </button>
+                          <button
+                            type="button"
+                            className="dictionary-apply-button"
+                            onClick={() => updateDraft('russian', t.displayTarget)}
+                            title="Использовать этот перевод в карточке"
+                          >
+                            📝
                           </button>
                           <span className="dictionary-confidence">
                             {Math.round(t.confidence * 100)}%

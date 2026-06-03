@@ -1528,3 +1528,48 @@
 [data-theme="dark"] .dictionary-back-translation-button:hover {
   background: rgba(88, 166, 255, 0.12);
 }
+
+/* ─── Dictionary apply button ────────────────────────────────────────────── */
+
+.dictionary-apply-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-strong);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.dictionary-apply-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  background: rgba(36, 122, 255, 0.08);
+}
+
+[data-theme="dark"] .dictionary-apply-button:hover {
+  background: rgba(88, 166, 255, 0.12);
+}
+
+/* ─── Translation provider label ─────────────────────────────────────────── */
+
+.translate-button-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.translate-button-row .translate-button {
+  margin-top: 0;
+  width: auto;
+  flex-shrink: 0;
+}

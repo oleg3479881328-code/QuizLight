@@ -6,6 +6,8 @@ export type TranslationResult = {
   detectedLanguage?: string
   /** Confidence of language detection (0-1) */
   confidence?: number
+  /** Provider that served this translation */
+  provider: 'azure' | 'local-fallback'
 }
 
 /** A single dictionary translation entry */
@@ -32,6 +34,8 @@ export type DictionaryLookupResult = {
   displaySource: string
   /** All possible translations with POS tags */
   translations: DictionaryTranslation[]
+  /** Provider that served this lookup */
+  provider: 'azure' | 'local-fallback'
 }
 
 /** Configuration for the translation service */
