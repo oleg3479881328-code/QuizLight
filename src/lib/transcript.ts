@@ -40,6 +40,7 @@ export function parseTranscriptJson(json: string): TranscriptEntry[] {
   } catch (err) {
     throw new Error(
       `Failed to parse transcript JSON: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     )
   }
 }

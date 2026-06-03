@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { loadCards, saveCards } from './lib/cards'
 import {
@@ -13,6 +13,8 @@ import {
   generateSenseBlock,
   parseTranscriptJson,
 } from './lib/transcript'
+import { translateText, dictionaryLookup } from './lib/translation/translationService'
+import type { DictionaryLookupResult } from './lib/translation/types'
 import YouTubeScenePlayer from './components/YouTubeScenePlayer'
 import type { Card, CardDraft, MatchCandidate, TranscriptEntry } from './types'
 import { YoutubeTranscript } from 'youtube-transcript'
@@ -93,6 +95,16 @@ function App() {
   const [showContextEditor, setShowContextEditor] = useState(false)
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false)
   const [parsedTranscript, setParsedTranscript] = useState<TranscriptEntry[] | null>(null)
+
+  // Translation state
+  const [isTranslating, setIsTranslating] = useState<'ru-to-en' | 'en-to-ru' | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Dictionary state
+  const [dictionaryWord, setDictionaryWord] = useState('')
+  const [dictionaryResult, setDictionaryResult] = useState<DictionaryLookupResult | null>(null)
+  const [isDictionaryLoading, setIsDictionaryLoading] = useState(false)
+  const [dictionaryError, setDictionaryError] = useState<string | null>(null)
 
   const russianFieldId = useId()
   const englishFieldId = useId()
@@ -475,7 +487,7 @@ function App() {
       }
 
       return true
-    } catch (err) {
+    } catch {
       // Fallback: try via Vite dev proxy
       try {
         const fallbackRes = await fetch(`/api/youtube-transcript?videoId=${encodeURIComponent(videoId)}`)
@@ -664,6 +676,74 @@ function App() {
     setTranscriptError(null)
   }
 
+  // ─── Translation handlers ─────────────────────────────────────────────────
+
+  async function handleTranslateRuToEn() {
+    const text = draft.russian.trim()
+    if (!text) return
+
+    // Cancel previous request
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    setIsTranslating('ru-to-en')
+
+    const result = await translateText(text, 'ru', 'en', controller.signal)
+    if (controller.signal.aborted) return
+
+    setIsTranslating(null)
+
+    if (result.ok) {
+      setDraft((current) => ({ ...current, english: result.data.text }))
+    } else {
+      console.warn('Translation failed (RU→EN):', result.error.message)
+    }
+  }
+
+  async function handleTranslateEnToRu() {
+    const text = draft.english.trim()
+    if (!text) return
+
+    // Cancel previous request
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    setIsTranslating('en-to-ru')
+
+    const result = await translateText(text, 'en', 'ru', controller.signal)
+    if (controller.signal.aborted) return
+
+    setIsTranslating(null)
+
+    if (result.ok) {
+      setDraft((current) => ({ ...current, russian: result.data.text }))
+    } else {
+      console.warn('Translation failed (EN→RU):', result.error.message)
+    }
+  }
+
+  // ─── Dictionary handler ───────────────────────────────────────────────────
+
+  async function handleDictionaryLookup() {
+    const word = dictionaryWord.trim()
+    if (!word) return
+
+    setIsDictionaryLoading(true)
+    setDictionaryError(null)
+    setDictionaryResult(null)
+
+    const result = await dictionaryLookup(word, 'en', 'ru')
+    setIsDictionaryLoading(false)
+
+    if (result.ok) {
+      setDictionaryResult(result.data)
+    } else {
+      setDictionaryError(result.error.message)
+    }
+  }
+
   const canStartQuiz = cards.length >= 2
   const hasContextScene = selectedCard?.youtubeUrl && selectedCard.sceneStartSeconds != null
 
@@ -812,6 +892,14 @@ function App() {
                   placeholder="Например: Доброе утро"
                   rows={3}
                 />
+                <button
+                  type="button"
+                  className="translate-button"
+                  onClick={handleTranslateRuToEn}
+                  disabled={!draft.russian.trim() || isTranslating === 'ru-to-en'}
+                >
+                  {isTranslating === 'ru-to-en' ? '⏳ Перевод...' : '🌐 Перевести на английский'}
+                </button>
               </label>
 
               {activeSuggestions ? (
@@ -845,6 +933,14 @@ function App() {
                   placeholder="For example: Good morning"
                   rows={3}
                 />
+                <button
+                  type="button"
+                  className="translate-button"
+                  onClick={handleTranslateEnToRu}
+                  disabled={!draft.english.trim() || isTranslating === 'en-to-ru'}
+                >
+                  {isTranslating === 'en-to-ru' ? '⏳ Перевод...' : '🌐 Перевести на русский'}
+                </button>
               </label>
 
               <label className="field" htmlFor={imageFieldId}>
@@ -1238,6 +1334,75 @@ function App() {
                   </div>
                 </div>
               ) : null}
+
+              {/* Dictionary Lookup section */}
+              <details className="dictionary-section">
+                <summary className="dictionary-summary">
+                  📖 Словарь (Dictionary Lookup)
+                </summary>
+                <div className="dictionary-input-row">
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={dictionaryWord}
+                    onChange={(e) => setDictionaryWord(e.target.value)}
+                    placeholder="Введите английское слово..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleDictionaryLookup()
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleDictionaryLookup}
+                    disabled={!dictionaryWord.trim() || isDictionaryLoading}
+                  >
+                    {isDictionaryLoading ? '⏳ Поиск...' : '🔍 Найти'}
+                  </button>
+                </div>
+
+                {dictionaryError ? (
+                  <div className="dictionary-error">
+                    ⚠️ {dictionaryError}
+                  </div>
+                ) : null}
+
+                {dictionaryResult ? (
+                  <div className="dictionary-results">
+                    <div className="dictionary-word">
+                      <strong>{dictionaryResult.displaySource}</strong>
+                      <span className="dictionary-normalized">
+                        ({dictionaryResult.normalizedSource})
+                      </span>
+                    </div>
+                    <div className="dictionary-translations">
+                      {dictionaryResult.translations.map((t, i) => (
+                        <div key={i} className="dictionary-translation-row">
+                          <span className="dictionary-pos-tag">{t.posTag}</span>
+                          <span className="dictionary-target-word">
+                            {t.displayTarget}
+                          </span>
+                          <span className="dictionary-confidence">
+                            {Math.round(t.confidence * 100)}%
+                          </span>
+                          {t.backTranslations && t.backTranslations.length > 0 ? (
+                            <div className="dictionary-back-translations">
+                              {t.backTranslations.slice(0, 3).map((bt, j) => (
+                                <span key={j} className="dictionary-back-translation">
+                                  {bt.displayText}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </details>
             </section>
           </section>
 
