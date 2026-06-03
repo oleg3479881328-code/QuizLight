@@ -2,7 +2,7 @@
 
 - Project: `QuizLight`
 - State date: `2026-06-03`
-- Last update: `2026-06-03` (YouTube Scene Player — переработан с пересозданием плеера при ошибках)
+- Last update: `2026-06-03` (добавлен project-specific backlog внешних идей для будущего развития)
 - State type: transfer-ready
 - Lifecycle position:
   - bootstrap completed
@@ -37,6 +37,19 @@
   - Retry button shown on error to manually trigger player recreation
   - Timeline shows Scene and Phrase segments based on video duration
 
+# Future Ideas Backlog
+
+- Project-specific reference ideas are stored in:
+  - `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md`
+- These ideas are preserved for later prioritization.
+- They are not automatically part of the active MVP scope.
+- The most relevant lightweight rules to apply now are:
+  - Video Learning Context Card
+  - Human Approval Gate
+  - Source-Linked Card Standard
+  - State Bridge Reasoning Pattern
+  - Codex Bounded Execution Workflow
+
 # What Is Not Yet Decided
 
 - authentication model
@@ -65,6 +78,7 @@
 - [AGENTS.md](C:/Users/oleg3/Documents/QuizLight/AGENTS.md)
 - [PROJECT_STATE.md](C:/Users/oleg3/Documents/QuizLight/PROJECT_STATE.md)
 - [logs/latest.md](C:/Users/oleg3/Documents/QuizLight/logs/latest.md)
+- `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md`
 
 # Do Not Break
 
@@ -75,6 +89,7 @@
 - Keep `v0` local-first unless a concrete blocker justifies adding backend complexity.
 - **YouTube transcript integration:** do not remove the Vite dev proxy (`/api/youtube-transcript`) — it's required for CORS-free transcript fetching. Do not remove `parsedTranscript` state or `handleTranscriptLineClick` — they power the clickable transcript UX.
 - **YouTube Scene Player:** do not remove `playerKey` state — it enables player recreation on error. Keep the `cueVideoById` + `seekTo` + `playVideo` approach as primary, with `loadVideoById` as fallback.
+- Do not treat `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md` as automatic permission to broaden MVP scope.
 
 # Known Issues
 
