@@ -2,6 +2,13 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { YoutubeTranscript } from 'youtube-transcript'
 
+interface DeepSeekChoice {
+  message: { content: string }
+}
+interface DeepSeekResponse {
+  choices: DeepSeekChoice[]
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
@@ -42,7 +49,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       {
-        name: 'azure-translator-dev-proxy',
+        name: 'deepseek-dev-proxy',
         configureServer(server) {
           // ─── POST /api/translate ─────────────────────────────────────────────
           server.middlewares.use('/api/translate', async (req, res) => {
@@ -53,23 +60,20 @@ export default defineConfig(({ mode }) => {
             }
 
             try {
-              const endpoint = env.AZURE_TRANSLATOR_ENDPOINT
-              const key = env.AZURE_TRANSLATOR_KEY
-              const region = env.AZURE_TRANSLATOR_REGION
+              const apiKey = env.DEEPSEEK_API_KEY
 
-              if (!endpoint || !key || !region) {
+              if (!apiKey) {
                 res.statusCode = 503
                 res.end(JSON.stringify({
                   error: {
                     code: 503,
-                    message: 'Azure Translator not configured. Set AZURE_TRANSLATOR_KEY, AZURE_TRANSLATOR_REGION, and AZURE_TRANSLATOR_ENDPOINT in .env.local',
+                    message: 'DeepSeek not configured. Set DEEPSEEK_API_KEY in .env.local',
                   },
                 }))
                 return
               }
 
               const url = new URL(req.url ?? '/', 'http://localhost')
-              const apiVersion = url.searchParams.get('api-version') || '3.0'
               const to = url.searchParams.get('to')
               const from = url.searchParams.get('from')
 
@@ -115,29 +119,52 @@ export default defineConfig(({ mode }) => {
                 return
               }
 
-              // Build Azure URL
-              const azureUrl = new URL(`${endpoint.replace(/\/+$/, '')}/translate`)
-              azureUrl.searchParams.set('api-version', apiVersion)
-              azureUrl.searchParams.set('to', to)
-              if (from) {
-                azureUrl.searchParams.set('from', from)
-              }
+              const text = parsedBody[0].Text.trim()
 
-              const azureRes = await fetch(azureUrl.toString(), {
+              // Build language direction prompt
+              const sourceLang = from === 'en' ? 'English' : 'Russian'
+              const targetLang = to === 'en' ? 'English' : 'Russian'
+
+              const systemPrompt = `You are a precise translator. Translate the following ${sourceLang} text to ${targetLang}. Respond with ONLY the translated text, no explanations, no quotes, no formatting.`
+              const userPrompt = text
+
+              const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
                 method: 'POST',
                 headers: {
-                  'Ocp-Apim-Subscription-Key': key,
-                  'Ocp-Apim-Subscription-Region': region,
+                  'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
-                body,
+                body: JSON.stringify({
+                  model: 'deepseek-chat',
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt },
+                  ],
+                  max_tokens: 500,
+                  temperature: 0.3,
+                }),
               })
 
-              const azureData = await azureRes.json()
+              if (!deepseekRes.ok) {
+                const errorText = await deepseekRes.text()
+                res.statusCode = deepseekRes.status
+                res.end(JSON.stringify({
+                  error: {
+                    code: deepseekRes.status,
+                    message: `DeepSeek API error: ${errorText}`,
+                  },
+                }))
+                return
+              }
+
+              const deepseekData = await deepseekRes.json() as DeepSeekResponse
+              const translatedText = deepseekData.choices?.[0]?.message?.content?.trim() ?? ''
 
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
-              res.statusCode = azureRes.status
-              res.end(JSON.stringify(azureData))
+              res.end(JSON.stringify([{
+                translations: [{ text: translatedText }],
+                detectedLanguage: { language: from || 'en', score: 1.0 },
+              }]))
             } catch (error) {
               res.statusCode = 500
               res.end(JSON.stringify({
@@ -158,23 +185,20 @@ export default defineConfig(({ mode }) => {
             }
 
             try {
-              const endpoint = env.AZURE_TRANSLATOR_ENDPOINT
-              const key = env.AZURE_TRANSLATOR_KEY
-              const region = env.AZURE_TRANSLATOR_REGION
+              const apiKey = env.DEEPSEEK_API_KEY
 
-              if (!endpoint || !key || !region) {
+              if (!apiKey) {
                 res.statusCode = 503
                 res.end(JSON.stringify({
                   error: {
                     code: 503,
-                    message: 'Azure Translator not configured. Set AZURE_TRANSLATOR_KEY, AZURE_TRANSLATOR_REGION, and AZURE_TRANSLATOR_ENDPOINT in .env.local',
+                    message: 'DeepSeek not configured. Set DEEPSEEK_API_KEY in .env.local',
                   },
                 }))
                 return
               }
 
               const url = new URL(req.url ?? '/', 'http://localhost')
-              const apiVersion = url.searchParams.get('api-version') || '3.0'
               const from = url.searchParams.get('from')
               const to = url.searchParams.get('to')
 
@@ -215,35 +239,90 @@ export default defineConfig(({ mode }) => {
                 return
               }
 
-              // Validate word is a single short token for dictionary
               const word = parsedBody[0].Text.trim()
+
+              // Validate word is a single short token for dictionary
               if (word.split(/\s+/).length > 1 || word.length > 50) {
                 res.statusCode = 400
                 res.end(JSON.stringify({ error: { code: 400, message: 'Dictionary lookup supports single words only' } }))
                 return
               }
 
-              // Build Azure URL
-              const azureUrl = new URL(`${endpoint.replace(/\/+$/, '')}/dictionary/lookup`)
-              azureUrl.searchParams.set('api-version', apiVersion)
-              azureUrl.searchParams.set('from', from)
-              azureUrl.searchParams.set('to', to)
+              const systemPrompt = `You are a bilingual dictionary. For the given English word, provide Russian translations with parts of speech.
 
-              const azureRes = await fetch(azureUrl.toString(), {
+Respond with a valid JSON array (no markdown, no code fences) in this exact format:
+[
+  {
+    "normalizedTarget": "russian word (lowercase)",
+    "displayTarget": "Russian word (normal form)",
+    "posTag": "NOUN|VERB|ADJ|ADV|PRON|PREP|CONJ|INTJ|UNKNOWN",
+    "confidence": 0.0-1.0,
+    "prefixWord": "",
+    "backTranslations": [
+      { "normalizedText": "english back-translation", "displayText": "English back-translation", "numExamples": 0, "frequencyCount": 0 }
+    ]
+  }
+]
+
+Include multiple translations for different meanings. Sort by confidence descending.`
+
+              const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
                 method: 'POST',
                 headers: {
-                  'Ocp-Apim-Subscription-Key': key,
-                  'Ocp-Apim-Subscription-Region': region,
+                  'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
-                body,
+                body: JSON.stringify({
+                  model: 'deepseek-chat',
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: word },
+                  ],
+                  max_tokens: 1000,
+                  temperature: 0.3,
+                }),
               })
 
-              const azureData = await azureRes.json()
+              if (!deepseekRes.ok) {
+                const errorText = await deepseekRes.text()
+                res.statusCode = deepseekRes.status
+                res.end(JSON.stringify({
+                  error: {
+                    code: deepseekRes.status,
+                    message: `DeepSeek API error: ${errorText}`,
+                  },
+                }))
+                return
+              }
+
+              const deepseekData = await deepseekRes.json() as DeepSeekResponse
+              const content = deepseekData.choices?.[0]?.message?.content?.trim() ?? ''
+
+              // Parse the JSON response from DeepSeek
+              let translations: unknown[]
+              try {
+                // Try direct parse first
+                translations = JSON.parse(content)
+              } catch {
+                // Try to extract JSON from markdown code fences
+                const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/)
+                if (jsonMatch) {
+                  translations = JSON.parse(jsonMatch[1].trim())
+                } else {
+                  throw new Error('Failed to parse DeepSeek dictionary response as JSON')
+                }
+              }
+
+              if (!Array.isArray(translations)) {
+                throw new Error('DeepSeek dictionary response is not an array')
+              }
 
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
-              res.statusCode = azureRes.status
-              res.end(JSON.stringify(azureData))
+              res.end(JSON.stringify([{
+                normalizedSource: word.toLowerCase(),
+                displaySource: word,
+                translations,
+              }]))
             } catch (error) {
               res.statusCode = 500
               res.end(JSON.stringify({
@@ -256,6 +335,17 @@ export default defineConfig(({ mode }) => {
           })
         },
       },
+      // ─── Azure Translator (deferred compatibility) ─────────────────────────
+      // Azure Translator code is preserved below but not active.
+      // To re-enable: rename this plugin to 'azure-translator-dev-proxy' and
+      // ensure it is registered before the deepseek-dev-proxy plugin.
+      // {
+      //   name: 'azure-translator-dev-proxy-deferred',
+      //   configureServer(server) {
+      //     server.middlewares.use('/api/translate', async (req, res) => { ... });
+      //     server.middlewares.use('/api/dictionary-lookup', async (req, res) => { ... });
+      //   },
+      // },
     ],
   }
 })

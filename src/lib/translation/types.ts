@@ -7,7 +7,7 @@ export type TranslationResult = {
   /** Confidence of language detection (0-1) */
   confidence?: number
   /** Provider that served this translation */
-  provider: 'azure' | 'local-fallback'
+  provider: 'deepseek' | 'local-fallback'
 }
 
 /** A single dictionary translation entry */
@@ -35,7 +35,7 @@ export type DictionaryLookupResult = {
   /** All possible translations with POS tags */
   translations: DictionaryTranslation[]
   /** Provider that served this lookup */
-  provider: 'azure' | 'local-fallback'
+  provider: 'deepseek' | 'local-fallback'
 }
 
 /** Configuration for the translation service */

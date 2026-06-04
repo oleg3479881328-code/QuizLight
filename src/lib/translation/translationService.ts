@@ -13,8 +13,8 @@ import {
 /**
  * Translate text from one language to another.
  *
- * Uses Azure Translator API via Vite dev-server middleware.
- * Falls back to local suggestion bank when Azure is unavailable or unconfigured.
+ * Uses DeepSeek API via Vite dev-server middleware.
+ * Falls back to local suggestion bank when DeepSeek is unavailable or unconfigured.
  *
  * @param text - The text to translate
  * @param from - Source language code (e.g. "en", "ru"). Use "auto" for auto-detect.
@@ -32,10 +32,10 @@ export async function translateText(
     return { ok: false, error: { code: 400, message: 'Empty text' } }
   }
 
-  // Always try Azure via middleware — middleware returns 503 if not configured
+  // Always try DeepSeek via middleware — middleware returns 503 if not configured
   try {
     const body = [{ Text: trimmed }]
-    const params = new URLSearchParams({ 'api-version': '3.0', to })
+    const params = new URLSearchParams({ to })
     if (from && from !== 'auto') {
       params.set('from', from)
     }
@@ -56,19 +56,19 @@ export async function translateText(
           text: translation.translations[0].text,
           detectedLanguage: translation.detectedLanguage?.language,
           confidence: translation.detectedLanguage?.score,
-          provider: 'azure',
+          provider: 'deepseek',
         },
       }
     }
 
     // Non-2xx response: log and fall through to local fallback
-    console.warn(`Azure translate returned ${res.status}, falling back to local`)
+    console.warn(`DeepSeek translate returned ${res.status}, falling back to local`)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       return { ok: false, error: { code: 0, message: 'Aborted' } }
     }
     // Network error: fall through to local fallback
-    console.warn('Azure translate failed, falling back to local:', err)
+    console.warn('DeepSeek translate failed, falling back to local:', err)
   }
 
   // Local fallback
@@ -80,8 +80,8 @@ export async function translateText(
 /**
  * Look up a single word in the dictionary for detailed POS-tagged translations.
  *
- * Uses Azure Translator Dictionary Lookup API via Vite dev-server middleware.
- * Falls back to a simple local heuristic when Azure is unavailable.
+ * Uses DeepSeek API via Vite dev-server middleware.
+ * Falls back to a simple local heuristic when DeepSeek is unavailable.
  *
  * @param word - A single word to look up
  * @param from - Source language code (e.g. "en")
@@ -99,14 +99,10 @@ export async function dictionaryLookup(
     return { ok: false, error: { code: 400, message: 'Empty word' } }
   }
 
-  // Always try Azure via middleware — middleware returns 503 if not configured
+  // Always try DeepSeek via middleware — middleware returns 503 if not configured
   try {
     const body = [{ Text: trimmed }]
-    const params = new URLSearchParams({
-      'api-version': '3.0',
-      from,
-      to,
-    })
+    const params = new URLSearchParams({ from, to })
 
     const res = await fetch(`/api/dictionary-lookup?${params.toString()}`, {
       method: 'POST',
@@ -123,7 +119,7 @@ export async function dictionaryLookup(
         data: {
           normalizedSource: entry.normalizedSource,
           displaySource: entry.displaySource,
-          provider: 'azure',
+          provider: 'deepseek',
           translations: entry.translations.map(
             (t: {
               normalizedTarget: string
@@ -146,13 +142,13 @@ export async function dictionaryLookup(
     }
 
     // Non-2xx response: log and fall through to local fallback
-    console.warn(`Azure dictionary lookup returned ${res.status}, falling back to local`)
+    console.warn(`DeepSeek dictionary lookup returned ${res.status}, falling back to local`)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       return { ok: false, error: { code: 0, message: 'Aborted' } }
     }
     // Network error: fall through to local fallback
-    console.warn('Azure dictionary lookup failed, falling back to local:', err)
+    console.warn('DeepSeek dictionary lookup failed, falling back to local:', err)
   }
 
   // Local fallback
@@ -190,7 +186,7 @@ function localTranslate(
     ok: false,
     error: {
       code: 404,
-      message: 'Translation not found in local bank. Configure Azure Translator for full coverage.',
+      message: 'Translation not found in local bank. Configure DeepSeek for full coverage.',
     },
   }
 }
@@ -247,7 +243,7 @@ function localDictionaryLookup(
     ok: false,
     error: {
       code: 404,
-      message: 'Dictionary entry not found in local bank. Configure Azure Translator for full coverage.',
+      message: 'Dictionary entry not found in local bank. Configure DeepSeek for full coverage.',
     },
   }
 }

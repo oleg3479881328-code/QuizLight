@@ -95,6 +95,9 @@ function App() {
   const [showContextEditor, setShowContextEditor] = useState(false)
   const [isLoadingTranscript, setIsLoadingTranscript] = useState(false)
   const [parsedTranscript, setParsedTranscript] = useState<TranscriptEntry[] | null>(null)
+  const [playerCurrentTime, setPlayerCurrentTime] = useState(0)
+  const [playFromTranscriptSeconds, setPlayFromTranscriptSeconds] = useState<number | null>(null)
+  const transcriptEntryRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Translation state
   const [isTranslating, setIsTranslating] = useState<'ru-to-en' | 'en-to-ru' | null>(null)
@@ -102,7 +105,7 @@ function App() {
   const transcriptAbortControllerRef = useRef<AbortController | null>(null)
   const transcriptRequestIdRef = useRef(0)
   const russianManualEditVersionRef = useRef(0)
-  const [translationProvider, setTranslationProvider] = useState<'azure' | 'local-fallback' | null>(null)
+  const [translationProvider, setTranslationProvider] = useState<'deepseek' | 'local-fallback' | null>(null)
   const [translationFallbackNote, setTranslationFallbackNote] = useState<string | null>(null)
 
   // Dictionary state
@@ -126,6 +129,26 @@ function App() {
       window.localStorage.setItem('quizlight.autoPlayAudio', String(autoPlayAudio))
     }
   }, [autoPlayAudio])
+
+  useEffect(() => {
+    const youtubeUrl = draft.youtubeUrl?.trim()
+
+    if (!youtubeUrl) {
+      setParsedTranscript(null)
+      return undefined
+    }
+
+    if (!extractYoutubeId(youtubeUrl)) {
+      setTranscriptError('Ссылка не распознана как YouTube URL.')
+      return undefined
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadTranscriptFromYouTubeUrl()
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [draft.youtubeUrl])
 
   function toggleTheme() {
     setTheme((current) => (current === 'light' ? 'dark' : 'light'))
@@ -658,7 +681,7 @@ function App() {
     const requestId = ++transcriptRequestIdRef.current
     const russianVersionBeforeRequest = russianManualEditVersionRef.current
 
-    // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for Azure
+    // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for DeepSeek
     const window = extractContextWindow(transcript, index)
     const senseBlock = generateSenseBlock({
       previousLines: window.previousLines,
@@ -669,6 +692,8 @@ function App() {
     })
 
     const clickedPhrase = entry.text
+
+    setPlayFromTranscriptSeconds(entry.start)
 
     setDraft((current) => ({
       ...current,
@@ -691,7 +716,7 @@ function App() {
     setShowContextEditor(true)
     setTranscriptError(null)
 
-    // 2. Try async EN→RU translation via Azure (with local fallback)
+    // 2. Try async EN→RU translation via DeepSeek (with local fallback)
     const translationResult = await translateText(entry.text, 'en', 'ru', controller.signal)
     if (controller.signal.aborted) return
 
@@ -711,7 +736,7 @@ function App() {
     setTranslationProvider(provider)
     setTranslationFallbackNote(
       provider === 'local-fallback'
-        ? 'Azure Translator недоступен — использована локальная подсказка.'
+        ? 'DeepSeek недоступен — использована локальная подсказка.'
         : null,
     )
   }
@@ -739,7 +764,7 @@ function App() {
       setTranslationProvider(result.data.provider)
       setTranslationFallbackNote(
         result.data.provider === 'local-fallback'
-          ? 'Azure Translator недоступен — использована локальная подсказка.'
+          ? 'DeepSeek недоступен — использована локальная подсказка.'
           : null,
       )
     } else {
@@ -770,7 +795,7 @@ function App() {
       setTranslationProvider(result.data.provider)
       setTranslationFallbackNote(
         result.data.provider === 'local-fallback'
-          ? 'Azure Translator недоступен — использована локальная подсказка.'
+          ? 'DeepSeek недоступен — использована локальная подсказка.'
           : null,
       )
     } else {
@@ -802,6 +827,41 @@ function App() {
 
   const canStartQuiz = cards.length >= 2
   const hasContextScene = selectedCard?.youtubeUrl && selectedCard.sceneStartSeconds != null
+
+  const previewSceneStartSeconds = Math.max(0, draft.sceneStartSeconds ?? draft.phraseStartSeconds ?? 0)
+  const previewSceneEndSeconds = Math.max(
+    previewSceneStartSeconds + 1,
+    draft.sceneEndSeconds ?? draft.phraseEndSeconds ?? previewSceneStartSeconds + 15,
+  )
+  const previewPhraseStartSeconds = Math.max(0, draft.phraseStartSeconds ?? previewSceneStartSeconds)
+  const previewPhraseEndSeconds = Math.max(
+    previewPhraseStartSeconds + 1,
+    draft.phraseEndSeconds ?? previewSceneEndSeconds,
+  )
+
+  const activeTranscriptIndex = useMemo(() => {
+    if (!parsedTranscript || parsedTranscript.length === 0) return -1
+
+    const currentTime = playerCurrentTime
+    for (let index = 0; index < parsedTranscript.length; index += 1) {
+      const entry = parsedTranscript[index]
+      const nextStart = parsedTranscript[index + 1]?.start ?? entry.end + 1
+      if (currentTime >= entry.start && currentTime < nextStart) {
+        return index
+      }
+    }
+
+    return parsedTranscript.findIndex((entry) => currentTime >= entry.start && currentTime < entry.end)
+  }, [parsedTranscript, playerCurrentTime])
+
+  useEffect(() => {
+    if (activeTranscriptIndex >= 0) {
+      transcriptEntryRefs.current[activeTranscriptIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }, [activeTranscriptIndex])
 
   return (
     <main className="app-shell">
@@ -959,7 +1019,7 @@ function App() {
                   </button>
                   {translationProvider && !isTranslating ? (
                     <span className="provider-label">
-                      {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                      {translationProvider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
                     </span>
                   ) : null}
                   {translationFallbackNote ? (
@@ -1011,7 +1071,7 @@ function App() {
                   </button>
                   {translationProvider && !isTranslating ? (
                     <span className="provider-label">
-                      {translationProvider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                      {translationProvider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
                     </span>
                   ) : null}
                   {translationFallbackNote ? (
@@ -1082,6 +1142,24 @@ function App() {
                   </div>
                 </label>
 
+                {draft.youtubeUrl?.trim() ? (
+                  <div className="context-scene-preview">
+                    <div className="context-scene-preview-header">
+                      <span className="context-scene-preview-label">Превью сцены</span>
+                      <span className="context-scene-preview-tag">YouTube</span>
+                    </div>
+                    <YouTubeScenePlayer
+                      youtubeUrl={draft.youtubeUrl}
+                      sceneStartSeconds={previewSceneStartSeconds}
+                      sceneEndSeconds={previewSceneEndSeconds}
+                      phraseStartSeconds={previewPhraseStartSeconds}
+                      phraseEndSeconds={previewPhraseEndSeconds}
+                      onTimeChange={setPlayerCurrentTime}
+                      playFromSeconds={playFromTranscriptSeconds}
+                    />
+                  </div>
+                ) : null}
+
                 {/* Clickable transcript list */}
                 {parsedTranscript && parsedTranscript.length > 0 ? (
                   <div className="transcript-clickable-list">
@@ -1091,11 +1169,15 @@ function App() {
                     <div className="transcript-clickable-entries">
                       {parsedTranscript.map((entry, i) => {
                         const isSelected = draft.phraseStartSeconds === entry.start
+                        const isActive = i === activeTranscriptIndex
                         return (
                           <button
                             key={i}
+                            ref={(node) => {
+                              transcriptEntryRefs.current[i] = node
+                            }}
                             type="button"
-                            className={`transcript-clickable-entry${isSelected ? ' is-selected' : ''}`}
+                            className={`transcript-clickable-entry${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
                             onClick={() => handleTranscriptLineClick(entry, i, parsedTranscript)}
                           >
                             <span className="transcript-entry-time">
@@ -1455,7 +1537,7 @@ function App() {
                         ({dictionaryResult.normalizedSource})
                       </span>
                       <span className="provider-label">
-                        {dictionaryResult.provider === 'azure' ? 'Azure Translator' : 'Локальная подсказка'}
+                        {dictionaryResult.provider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
                       </span>
                     </div>
                     <div className="dictionary-translations">

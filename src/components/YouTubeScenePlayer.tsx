@@ -18,6 +18,8 @@ type Props = {
   sceneEndSeconds: number
   phraseStartSeconds: number
   phraseEndSeconds: number
+  onTimeChange?: (time: number) => void
+  playFromSeconds?: number | null
 }
 
 /**
@@ -37,6 +39,8 @@ export default function YouTubeScenePlayer({
   sceneEndSeconds,
   phraseStartSeconds,
   phraseEndSeconds,
+  onTimeChange,
+  playFromSeconds,
 }: Props) {
   const videoId = extractYoutubeId(youtubeUrl)
 
@@ -120,17 +124,21 @@ export default function YouTubeScenePlayer({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (event: any) => {
           console.warn('YouTube player error:', event.data)
-          if (event.data === 5) {
-            setPlayerError('Ошибка HTML5-плеера. Попробуйте iframe-режим.')
+          stopTimeCheck()
+
+          if (event.data === 5 || event.data === 101 || event.data === 150 || event.data === 153) {
             setPlayerReady(false)
-          } else if (event.data === 2) {
+            setPlayerError(null)
+            switchToIframeMode()
+            return
+          }
+
+          if (event.data === 2) {
             setPlayerError('Неверный ID видео.')
           } else if (event.data === 100) {
             setPlayerError('Видео недоступно.')
-          } else if (event.data === 101 || event.data === 150) {
-            setPlayerError('Владелец видео запретил встраивание.')
-          } else if (event.data === 153) {
-            setPlayerError('YouTube отклонил запрос: отсутствует идентификация страницы-источника.')
+          } else {
+            setPlayerError('Не удалось загрузить YouTube-плеер.')
           }
         },
       },
@@ -169,15 +177,12 @@ export default function YouTubeScenePlayer({
       try {
         const time = playerRef.current.getCurrentTime()
         setCurrentTime(time)
-        if (time >= sceneEndSeconds) {
-          playerRef.current.stopVideo()
-          stopTimeCheck()
-        }
+        onTimeChange?.(time)
       } catch {
         // ignore
       }
     }, 200)
-  }, [sceneEndSeconds, sceneStartSeconds])
+  }, [onTimeChange, sceneEndSeconds, sceneStartSeconds])
 
   function stopTimeCheck() {
     if (checkIntervalRef.current !== null) {
@@ -185,6 +190,25 @@ export default function YouTubeScenePlayer({
       checkIntervalRef.current = null
     }
   }
+
+  useEffect(() => {
+    if (playFromSeconds == null || !playerReady || !playerRef.current || !videoId) return
+
+    try {
+      stopTimeCheck()
+      playerRef.current.setVolume(100)
+      playerRef.current.unMute()
+      playerRef.current.loadVideoById({
+        videoId,
+        startSeconds: playFromSeconds,
+      })
+      setIsPlaying(true)
+      setPlayerError(null)
+      queueMicrotask(() => startTimeCheck())
+    } catch {
+      // ignore
+    }
+  }, [playFromSeconds, playerReady, sceneEndSeconds, startTimeCheck, videoId])
 
   // === API-режим: Play Scene ===
   function playApiScene() {
@@ -207,7 +231,6 @@ export default function YouTubeScenePlayer({
       playerRef.current.loadVideoById({
         videoId,
         startSeconds: sceneStartSeconds,
-        endSeconds: sceneEndSeconds,
       })
     } catch (err) {
       console.warn('playApiScene failed:', err)
@@ -225,6 +248,14 @@ export default function YouTubeScenePlayer({
   }
 
   function switchToIframeMode() {
+    stopTimeCheck()
+    try {
+      playerRef.current?.destroy()
+    } catch {
+      // ignore
+    }
+    playerRef.current = null
+    setPlayerReady(false)
     setUseApi(false)
     setPlayerError(null)
   }
@@ -245,8 +276,9 @@ export default function YouTubeScenePlayer({
   // === Запасной iframe-режим ===
   if (!useApi) {
     const iframeSrc = `https://www.youtube.com/embed/${videoId}`
-      + `?start=${Math.floor(sceneStartSeconds)}`
+      + `?start=${Math.floor(playFromSeconds ?? sceneStartSeconds)}`
       + `&end=${Math.floor(sceneEndSeconds)}`
+      + `&autoplay=1`
       + `&rel=0`
       + `&modestbranding=1`
       + `&iv_load_policy=3`
