@@ -735,7 +735,7 @@ function App() {
     setIsTranslating(null)
 
     if (result.ok) {
-      setDraft((current) => ({ ...current, english: result.data.text }))
+      updateDraft('english', result.data.text)
       setTranslationProvider(result.data.provider)
       setTranslationFallbackNote(
         result.data.provider === 'local-fallback'
@@ -766,7 +766,7 @@ function App() {
     setIsTranslating(null)
 
     if (result.ok) {
-      setDraft((current) => ({ ...current, russian: result.data.text }))
+      updateDraft('russian', result.data.text)
       setTranslationProvider(result.data.provider)
       setTranslationFallbackNote(
         result.data.provider === 'local-fallback'
