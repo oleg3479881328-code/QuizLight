@@ -124,3 +124,20 @@ Evidence:
 
 Next Step:
 Executor reads Issue #3, confirms the channel, implements only the bounded DeepSeek MVP integration, validates build and lint, appends one meaningful log event, updates the snapshot, and posts a signed Patch Execution Report in Issue #3.
+
+## 2026-06-04 08:34:20 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Correction Notice
+Project: QuizLight
+
+Summary:
+Correction for the two preceding DeepSeek migration entries: their displayed timestamp `2026-06-04 08:31:08 America/New_York` was inserted before a separate runtime clock verification. The entries remain preserved because this file is append-only. The verified runtime timestamp for this correction is shown in this heading.
+
+Evidence:
+- Confirmed runtime time zone: `America/New_York`
+- Confirmed runtime timestamp at correction creation: `2026-06-04 08:34:20 America/New_York`
+- Append-only rule: prior entries preserved unchanged
+
+Next Step:
+Use verified concrete timestamps for future appended coordination events.
