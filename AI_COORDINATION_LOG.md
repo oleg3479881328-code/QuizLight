@@ -63,3 +63,28 @@ Evidence:
 
 Next Step:
 Use verified concrete timestamps for all future appended events.
+
+## 2026-06-03 — Patch 5 Applied (Commit 9789917)
+
+- **Event:** Applied all items from ChatGPT's fifth review (3 P0 issues).
+- **Changes:**
+  - `applyRussianSuggestion` now routes through `updateDraft('russian', value)` — increments `russianManualEditVersionRef`.
+  - `applyEnglishSuggestion` now routes through `updateDraft('english', value)` — calls `invalidateTranscriptTranslation()`.
+  - Added `invalidateTranscriptTranslation()` helper — aborts pending `AbortController` + increments `transcriptRequestIdRef`.
+  - `updateDraft` when `field === 'english'` calls `invalidateTranscriptTranslation()`.
+  - `resetForm()` calls `invalidateTranscriptTranslation()` + clears `translationProvider` and `translationFallbackNote`.
+- **Validation:** `npx tsc --noEmit` — 0 errors. `npx eslint src/App.tsx` — 0 errors, 1 pre-existing warning.
+- **Commit:** `9789917` pushed to `origin/master`.
+- **AI_COORDINATION_STATE.md:** Updated to `PATCH_APPLIED — awaiting reviewer confirmation`.
+- **Status:** Awaiting ChatGPT confirmation in Issue #2.
+
+## 2026-06-03 — Patch 6 Applied (Commit 54fbaa4)
+
+- **Event:** Applied the single P0 item from ChatGPT's sixth review.
+- **Changes:**
+  - `handleTranslateRuToEn` now routes through `updateDraft('english', result.data.text)` instead of direct `setDraft()`.
+  - `handleTranslateEnToRu` now routes through `updateDraft('russian', result.data.text)` instead of direct `setDraft()`.
+- **Validation:** `npm run build` — 0 errors. `npm run lint` — 0 errors, 1 pre-existing warning.
+- **Commit:** `54fbaa4` pushed to `origin/master`.
+- **AI_COORDINATION_STATE.md:** Updated to `PATCH_APPLIED — awaiting reviewer confirmation`.
+- **Status:** Awaiting ChatGPT confirmation in Issue #2.

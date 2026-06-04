@@ -40,11 +40,11 @@ Integrate Azure Translator as the MVP translation and compact dictionary layer w
 
 Latest reviewed commit:
 
-`0b7606adda16005c492ebcee3ce821d2e42509a6`
+`54fbaa4` — fix: route manual translation buttons through updateDraft()
 
 Current review status:
 
-`BLOCKED — final edge-case patch required`
+`PATCH_APPLIED — awaiting reviewer confirmation`
 
 ## Accepted Changes
 
@@ -64,48 +64,31 @@ Current review status:
 - Request-id stale-response guard exists.
 - Russian manual-edit version guard exists.
 - Root-level append-only coordination journal exists: `AI_COORDINATION_LOG.md`.
+- `invalidateTranscriptTranslation()` helper — aborts pending request + increments requestId.
+- `updateDraft('english', ...)` triggers `invalidateTranscriptTranslation()`.
+- `applyEnglishSuggestion` routes through `updateDraft('english', value)`.
+- `applyRussianSuggestion` routes through `updateDraft('russian', value)`.
+- `resetForm()` calls `invalidateTranscriptTranslation()` + clears provider state.
+- Manual translation buttons (RU→EN, EN→RU) route through `updateDraft()` instead of direct `setDraft()`.
 
 ## Open Review Items
 
-Apply the latest reviewer patch from GitHub Issue #2:
+All items from the fifth review (Patch 5) have been applied and pushed:
 
-1. Route local Russian suggestion selection through:
+1. ✅ Route local Russian suggestion selection through `updateDraft('russian', value)`
+2. ✅ Add `invalidateTranscriptTranslation()` helper
+3. ✅ Invalidate pending transcript translation when English field is changed, English suggestion applied, or form reset
+4. ✅ Route local English suggestion selection through `updateDraft('english', value)`
+5. ✅ In `resetForm()`: invalidate pending translation, clear provider label, clear fallback note
 
-```ts
-updateDraft('russian', value)
-```
+All items from the sixth review (Patch 6) have been applied and pushed:
 
-2. Add:
-
-```ts
-function invalidateTranscriptTranslation() {
-  transcriptAbortControllerRef.current?.abort()
-  transcriptAbortControllerRef.current = null
-  transcriptRequestIdRef.current += 1
-}
-```
-
-3. Invalidate pending transcript translation when:
-
-- the English field is manually changed;
-- an English local suggestion is applied;
-- the form is reset.
-
-4. Route local English suggestion selection through:
-
-```ts
-updateDraft('english', value)
-```
-
-5. In `resetForm()`:
-
-- invalidate pending transcript translation;
-- clear provider label;
-- clear fallback note.
+1. ✅ `handleTranslateRuToEn` routes through `updateDraft('english', result.data.text)`
+2. ✅ `handleTranslateEnToRu` routes through `updateDraft('russian', result.data.text)`
 
 ## Next Step
 
-Executor applies the latest edge-case patch from GitHub Issue #2, runs validation, pushes one minimal commit, posts a structured `Patch Execution Report` in GitHub Issue #2, and appends one meaningful implementation event to `AI_COORDINATION_LOG.md`.
+Reviewer (ChatGPT) to confirm the patch and either approve or request further changes.
 
 ## Required Validation
 
