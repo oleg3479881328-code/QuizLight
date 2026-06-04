@@ -16,79 +16,96 @@ Do not copy the full discussion history into this file.
 
 ## Active Channel
 
-GitHub Issue #2:
-https://github.com/oleg3479881328-code/QuizLight/issues/2
+GitHub Issue #3:
+https://github.com/oleg3479881328-code/QuizLight/issues/3
 
 ## Previous Channels
 
 - GitHub Issue #1 — archived for new messages because the thread became too long for reliable connector reading.
-- GitHub Issue #2 — active channel for all new executor reports, blockers, questions, and reviewer replies.
+- GitHub Issue #2 — Azure Translator review channel; retained as completed technical history for the deferred Azure layer.
+- GitHub Issue #3 — active channel for DeepSeek API integration, executor reports, blockers, questions, and reviewer replies.
 
 ## Active Participants
 
 - Owner: Oleg Povalyukhin
-- Reviewer: ChatGPT
+- Reviewer and Architect: ChatGPT
 - Executor Agent: Cline (Codex Agent)
 
-The executor agent role is model-neutral. A future executor may be Codex, DeepSeek, Claude, another connected AI agent, automation, or a human developer.
+The executor role is model-neutral. A future executor may be Codex, DeepSeek, Claude, another connected AI agent, automation, or a human developer.
 
 ## Current Task
 
-Integrate Azure Translator as the MVP translation and compact dictionary layer while preserving local suggestions as fallback.
+Integrate DeepSeek API as the temporary MVP AI provider for broad QuizLight feature testing while preserving the existing Azure Translator code as deferred compatibility and preserving local fallbacks.
 
 ## Current Repository State
 
-Latest reviewed commit:
+Latest accepted source-code review baseline:
 
 `54fbaa4` — fix: route manual translation buttons through updateDraft()
 
-Current review status:
+Current coordination status:
 
-`PATCH_APPLIED — awaiting reviewer confirmation`
+`HANDOFF_ISSUED — awaiting executor confirmation in GitHub Issue #3`
 
-## Accepted Changes
+## Accepted Existing Changes
 
-- Azure secrets remain server-side.
-- `.env.local` values are loaded through Vite `loadEnv()`.
-- Browser calls local `/api/translate` and `/api/dictionary-lookup` routes.
-- Local fallback remains available when Azure is unavailable.
+- Existing Azure secrets remain server-side.
+- Existing `.env.local` values are loaded through Vite `loadEnv()`.
+- Existing browser translation calls use local middleware routes.
+- Existing local fallback remains available when remote providers are unavailable.
 - EN -> RU and RU -> EN manual translation handlers exist.
 - YouTube transcript click starts asynchronous EN -> RU translation.
 - Context window appears immediately before translation completes.
 - Dictionary lookup exists.
 - Dictionary target translation can be applied to the Russian card field.
-- Provider metadata exists: `azure` or `local-fallback`.
-- UI provider labels exist: `Azure Translator` or `Локальная подсказка`.
+- Existing provider metadata supports `azure` or `local-fallback`.
+- Existing UI provider labels support `Azure Translator` or `Локальная подсказка`.
 - Fallback note exists.
 - Dedicated transcript-click `AbortController` exists.
 - Request-id stale-response guard exists.
 - Russian manual-edit version guard exists.
+- `invalidateTranscriptTranslation()` aborts pending request and increments request id.
+- Local English and Russian suggestions route through `updateDraft()`.
+- Reset invalidates pending transcript translation and clears provider UI state.
+- Manual translation buttons route through `updateDraft()` instead of direct `setDraft()`.
 - Root-level append-only coordination journal exists: `AI_COORDINATION_LOG.md`.
-- `invalidateTranscriptTranslation()` helper — aborts pending request + increments requestId.
-- `updateDraft('english', ...)` triggers `invalidateTranscriptTranslation()`.
-- `applyEnglishSuggestion` routes through `updateDraft('english', value)`.
-- `applyRussianSuggestion` routes through `updateDraft('russian', value)`.
-- `resetForm()` calls `invalidateTranscriptTranslation()` + clears provider state.
-- Manual translation buttons (RU→EN, EN→RU) route through `updateDraft()` instead of direct `setDraft()`.
 
-## Open Review Items
+## New DeepSeek Handoff Scope
 
-All items from the fifth review (Patch 5) have been applied and pushed:
+Use GitHub Issue #3 as the authoritative bounded handoff packet.
 
-1. ✅ Route local Russian suggestion selection through `updateDraft('russian', value)`
-2. ✅ Add `invalidateTranscriptTranslation()` helper
-3. ✅ Invalidate pending transcript translation when English field is changed, English suggestion applied, or form reset
-4. ✅ Route local English suggestion selection through `updateDraft('english', value)`
-5. ✅ In `resetForm()`: invalidate pending translation, clear provider label, clear fallback note
+Required DeepSeek MVP layer:
 
-All items from the sixth review (Patch 6) have been applied and pushed:
+1. Preserve existing Azure code but defer Azure configuration.
+2. Add server-side DeepSeek secret configuration only.
+3. Add bounded DeepSeek translation endpoint.
+4. Add bounded DeepSeek dictionary endpoint.
+5. Add bounded DeepSeek sense-block endpoint.
+6. Preserve existing local translation and rule-based sense-block fallbacks.
+7. Add UI provider label: `DeepSeek`.
+8. Add mandatory server-side runtime token and cache-hit/cache-miss logging.
+9. Do not expand scope into authentication, deployment, billing UI, database storage, or unrelated features.
 
-1. ✅ `handleTranslateRuToEn` routes through `updateDraft('english', result.data.text)`
-2. ✅ `handleTranslateEnToRu` routes through `updateDraft('russian', result.data.text)`
+## API Model Runtime Check
+
+```text
+Provider: DeepSeek
+Model: deepseek-v4-flash
+API-based AI model: Yes
+Prompt caching supported: Yes
+Usage fields available: prompt_tokens, completion_tokens, total_tokens
+Cache-hit fields available: prompt_cache_hit_tokens
+Cache-miss fields available: prompt_cache_miss_tokens
+Stable prefix ordering preserved: executor must report Yes / No
+Runtime logging implemented: executor must report Yes / No
+If not implemented, blocker or reason: executor must report explicitly
+```
 
 ## Next Step
 
-Reviewer (ChatGPT) to confirm the patch and either approve or request further changes.
+Executor reads GitHub Issue #3, posts a signed channel-confirmation reply, implements only the bounded DeepSeek MVP layer, runs build and lint, appends one meaningful event at the bottom of `AI_COORDINATION_LOG.md`, updates this snapshot if the current state changes, and posts a signed Patch Execution Report in GitHub Issue #3.
+
+Owner creates or retrieves a DeepSeek Platform API key and stores it locally only when the executor requests runtime verification.
 
 ## Required Validation
 
@@ -97,18 +114,26 @@ npm run build
 npm run lint
 ```
 
-Manual checks:
+Manual checks with DeepSeek configured:
 
 ```text
-1. Transcript phrase -> while pending click local Russian suggestion -> late Azure response must not overwrite it.
-2. Transcript phrase -> while pending manually edit English -> late response must not update provider label or fallback note.
-3. Transcript phrase -> while pending reset form -> late response must not update provider label or fallback note.
-4. Phrase A then phrase B quickly -> late A response ignored.
-5. Clear Russian while pending -> late response ignored.
-6. Azure absent -> manual Thank you translation -> Спасибо + local fallback label + note.
-7. Azure success after fallback -> fallback note clears.
-8. Dictionary apply still updates Russian field.
-9. YouTube playback still works.
+1. Manual EN -> RU translation uses DeepSeek label.
+2. Manual RU -> EN translation uses DeepSeek label.
+3. Dictionary lookup returns structured alternatives.
+4. Transcript phrase click fills translation and AI-generated sense block.
+5. Phrase A then phrase B quickly -> stale A response ignored.
+6. Runtime log records token usage and cache hit/miss fields.
+7. Repeat similar requests -> provider-reported cache-hit values are recorded when returned.
+8. YouTube playback still works.
+```
+
+Manual checks without DeepSeek key:
+
+```text
+1. Translation falls back locally.
+2. Sense block falls back to current rule-based generator.
+3. UI shows local fallback note.
+4. App remains usable.
 ```
 
 ## Update Rule
