@@ -88,3 +88,39 @@ Use verified concrete timestamps for all future appended events.
 - **Commit:** `54fbaa4` pushed to `origin/master`.
 - **AI_COORDINATION_STATE.md:** Updated to `PATCH_APPLIED — awaiting reviewer confirmation`.
 - **Status:** Awaiting ChatGPT confirmation in Issue #2.
+
+## 2026-06-04 08:31:08 America/New_York
+
+Actor: Oleg Povalyukhin — Project Owner
+Type: Scope Change
+Project: QuizLight
+
+Summary:
+The owner postponed Azure Translator configuration and selected DeepSeek API as the temporary MVP AI provider for broader feature testing. Existing Azure code must remain intact but deferred.
+
+Evidence:
+- Owner decision recorded in chat on 2026-06-04.
+- Existing Azure fallback behavior remains available.
+- API-model runtime cache gate applies to DeepSeek integration.
+
+Next Step:
+Create a dedicated DeepSeek integration handoff and migrate the active implementation channel.
+
+## 2026-06-04 08:31:08 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Channel Migration and Handoff Issued
+Project: QuizLight
+
+Summary:
+Created GitHub Issue #3 as the active channel for bounded DeepSeek API integration. The handoff requires server-side secrets, three DeepSeek endpoints, local fallback preservation, AI-generated sense block support, provider labels, and mandatory runtime usage plus cache-hit/cache-miss logging.
+
+Evidence:
+- Previous active channel: https://github.com/oleg3479881328-code/QuizLight/issues/2
+- New active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- API runtime gate: `knowledge-library/execution-standards/api-model-runtime-cache-gate.md`
+- Official DeepSeek base URL: `https://api.deepseek.com`
+- Recommended MVP model: `deepseek-v4-flash`
+
+Next Step:
+Executor reads Issue #3, confirms the channel, implements only the bounded DeepSeek MVP integration, validates build and lint, appends one meaningful log event, updates the snapshot, and posts a signed Patch Execution Report in Issue #3.
