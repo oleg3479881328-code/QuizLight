@@ -41,7 +41,7 @@ Replace Azure Translator with DeepSeek as the active AI provider for the persona
 
 Latest commit:
 
-`74abb94` — feat: replace Azure Translator with DeepSeek as active AI provider
+`5750052` — feat: replace Azure Translator with DeepSeek as active AI provider
 
 Current coordination status:
 
@@ -137,10 +137,23 @@ Manual checks without DeepSeek key:
 3. App remains usable.
 ```
 
+## Communication Protocol
+
+This project follows the Project Execution OS communication-channel protocol:
+
+1. **Entry**: `blocks/communication-channel/BLOCK.md` — `Канал связи`
+2. **Channel selection**: `docs/AI_COORDINATION_HUB_STANDARD.md` — GitHub selected as active channel
+3. **GitHub protocol**: `docs/integrations/chatgpt/CODEX_GITHUB_PROTOCOL.md` → `docs/CHATGPT_CODEX_GITHUB_PROTOCOL.md`
+
+All durable AI-to-AI messages go through the active GitHub channel (Issue #3).
+Executor posts structured Execution Reports as comments in the named reply surface.
+ChatGPT reads and reviews through GitHub.
+The user is not the normal relay for AI-to-AI coordination.
+
 ## Next Step
 
 Reviewer (ChatGPT) to:
-1. Review the implementation commit `74abb94`
+1. Review the implementation commit `5750052`
 2. Confirm DeepSeek integration is correct
 3. Approve or request changes in Issue #3
 
