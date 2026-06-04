@@ -41,18 +41,18 @@ Replace Azure Translator with DeepSeek as the active AI provider for the persona
 
 Latest commit:
 
-`5750052` — feat: replace Azure Translator with DeepSeek as active AI provider
+`35bfa1b` — fix: apply 6 of 7 ChatGPT review items for DeepSeek integration
 
 Current coordination status:
 
-`IMPLEMENTED — awaiting reviewer confirmation in GitHub Issue #3`
+`BOUNDED_REVISION_APPLIED — awaiting reviewer confirmation in GitHub Issue #3`
 
 ## Accepted Decisions (Issue #3)
 
 - DeepSeek is the single active AI provider for this phase.
 - Azure code is preserved but not configured or called by default.
 - Server-side secret: `DEEPSEEK_API_KEY` (not exposed via `VITE_`).
-- Model: `deepseek-chat` (non-thinking mode, temperature 0.3).
+- Model: `deepseek-v4-flash` (thinking disabled, temperature 0.3).
 - Provider policy: DeepSeek API → local fallback.
 - Bounded Issue #3 scope only — no auth, deployment, billing UI, database, or unrelated features.
 
@@ -100,15 +100,14 @@ All items from the Azure Translator integration (Issue #1, Issue #2) have been a
 
 ```text
 Provider: DeepSeek
-Model: deepseek-chat (non-thinking mode, temperature 0.3)
+Model: deepseek-v4-flash (thinking disabled, temperature 0.3)
 API-based AI model: Yes
 Prompt caching supported: Yes (via DeepSeek API)
 Usage fields available: prompt_tokens, completion_tokens, total_tokens
 Cache-hit fields available: prompt_cache_hit_tokens
 Cache-miss fields available: prompt_cache_miss_tokens
 Stable prefix ordering preserved: N/A — not implemented in current middleware
-Runtime logging implemented: No — not implemented in current middleware
-If not implemented, blocker or reason: Out of scope for Issue #3 MVP. Can be added in a follow-up.
+Runtime logging implemented: Yes — all 3 endpoints (translate, dictionary, sense-block) ✅
 ```
 
 ## Required Validation
@@ -153,8 +152,8 @@ The user is not the normal relay for AI-to-AI coordination.
 ## Next Step
 
 Reviewer (ChatGPT) to:
-1. Review the implementation commit `5750052`
-2. Confirm DeepSeek integration is correct
+1. Review the bounded revision commit `35bfa1b`
+2. Confirm all 6 review items are correctly applied
 3. Approve or request changes in Issue #3
 
 ## Update Rule
