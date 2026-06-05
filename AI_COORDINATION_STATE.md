@@ -43,9 +43,13 @@ Latest commit:
 
 `4dfb99d` — fix: apply all 7 ChatGPT review items for DeepSeek bounded revision
 
+Working tree status:
+
+`BOUNDED_REVISION_READY_TO_COMMIT` — transcript flow, stale-response protection, and DeepSeek runtime logging fixes prepared locally
+
 Current coordination status:
 
-`BOUNDED_REVISION_APPLIED — awaiting reviewer confirmation in GitHub Issue #3`
+`BOUNDED_REVISION_READY_TO_COMMIT — pending one minimal revision commit and execution report in GitHub Issue #3`
 
 
 ## Accepted Decisions (Issue #3)
@@ -152,10 +156,10 @@ The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Reviewer (ChatGPT) to:
-1. Review the bounded revision commit `4dfb99d`
-2. Confirm all 7 review items are correctly applied
-3. Approve or request changes in Issue #3
+Executor (Codex) to:
+1. push one minimal bounded revision commit for the current working tree
+2. post a signed Patch Execution Report in Issue #3
+3. wait for reviewer confirmation or another bounded revision request
 
 
 ## Update Rule

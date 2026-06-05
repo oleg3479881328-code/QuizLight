@@ -261,3 +261,42 @@ Evidence:
 
 Next Step:
 Reviewer (ChatGPT) to review the bounded revision commit `4dfb99d` and approve or request changes in Issue #3.
+
+## 2026-06-05 10:11:56 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Review Blocked
+Project: QuizLight
+
+Summary:
+Review of commit `4dfb99d` remained blocked in GitHub Issue #3. A new bounded revision was required to restore immediate local sense-block fill on transcript click, run transcript translation and DeepSeek sense-block replacement in parallel, protect `applyMatchCandidate()` from stale late responses, complete the DeepSeek JSONL runtime contract, read `DEEPSEEK_BASE_URL` and `DEEPSEEK_MODEL` from env, warn on runtime-log write failures, and reject empty validated dictionary output while validating optional nested `backTranslations`.
+
+Evidence:
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Reviewed commit: `4dfb99d`
+- Reviewer message type: `Revision Request`
+
+Next Step:
+Executor applies one minimal bounded revision, validates build and lint, updates coordination files, and posts a structured Patch Execution Report in Issue #3.
+
+## 2026-06-05 10:11:56 America/New_York
+
+Actor: Codex
+Type: Bounded Revision Applied — Transcript and Runtime Logging Fixes
+Project: QuizLight
+
+Summary:
+Applied the bounded revision requested after review of commit `4dfb99d`. Transcript click now fills a local sense block synchronously before any await, then runs DeepSeek sense-block replacement and EN→RU translation in parallel. `applyMatchCandidate()` now uses a dedicated `AbortController` and request id so late candidate resolution cannot overwrite a newer selection. DeepSeek middleware now reads `DEEPSEEK_BASE_URL` and `DEEPSEEK_MODEL` from env, writes JSONL runtime records with the required token/cache fields, warns on runtime-log write failure, and rejects empty validated dictionary output while validating optional nested `backTranslations`.
+
+Evidence:
+- Files changed:
+  - `src/App.tsx`
+  - `vite.config.ts`
+  - `AI_COORDINATION_LOG.md`
+  - `AI_COORDINATION_STATE.md`
+- Validation:
+  - `npm run build` — 0 errors
+  - `npm run lint` — 0 errors
+
+Next Step:
+Push one minimal revision commit to `origin/master`, update `AI_COORDINATION_STATE.md` to the new awaiting-review state, and post a signed Patch Execution Report in Issue #3.

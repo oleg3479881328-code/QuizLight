@@ -15,19 +15,38 @@ interface DeepSeekUsage {
   prompt_cache_miss_tokens?: number
 }
 interface DeepSeekResponse {
+  id?: string
   choices: DeepSeekChoice[]
   usage?: DeepSeekUsage
 }
 
+type RuntimeLogEntry = {
+  provider: 'deepseek'
+  model: string
+  endpoint: string
+  status: string
+  latency_ms: number
+  request_id?: string
+  input_tokens_total?: number
+  input_tokens_cache_hit?: number
+  input_tokens_cache_miss?: number
+  output_tokens?: number
+  total_tokens?: number
+}
+
 /** Append a JSONL line to the runtime log file. */
-function logJsonl(entry: Record<string, unknown>) {
+function logJsonl(entry: RuntimeLogEntry) {
   const logDir = path.resolve(process.cwd(), 'logs')
   const logFile = path.join(logDir, 'deepseek-runtime.jsonl')
   try {
     fs.mkdirSync(logDir, { recursive: true })
-    fs.appendFileSync(logFile, JSON.stringify({ ...entry, timestamp: new Date().toISOString() }) + '\n', 'utf-8')
-  } catch {
-    // Silently ignore write errors
+    fs.appendFileSync(
+      logFile,
+      JSON.stringify({ timestamp_utc: new Date().toISOString(), ...entry }) + '\n',
+      'utf-8',
+    )
+  } catch (error) {
+    console.warn('[DeepSeek runtime log] Failed to append JSONL entry:', error)
   }
 }
 
@@ -73,6 +92,31 @@ export default defineConfig(({ mode }) => {
       {
         name: 'deepseek-dev-proxy',
         configureServer(server) {
+          const deepseekBaseUrl = env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
+          const deepseekModel = env.DEEPSEEK_MODEL || 'deepseek-v4-flash'
+
+          function writeRuntimeLog(args: {
+            endpoint: string
+            status: string
+            startedAt: number
+            response?: DeepSeekResponse
+          }) {
+            const { endpoint, status, startedAt, response } = args
+            logJsonl({
+              provider: 'deepseek',
+              model: deepseekModel,
+              endpoint,
+              status,
+              latency_ms: Date.now() - startedAt,
+              request_id: response?.id,
+              input_tokens_total: response?.usage?.prompt_tokens,
+              input_tokens_cache_hit: response?.usage?.prompt_cache_hit_tokens,
+              input_tokens_cache_miss: response?.usage?.prompt_cache_miss_tokens,
+              output_tokens: response?.usage?.completion_tokens,
+              total_tokens: response?.usage?.total_tokens,
+            })
+          }
+
           // ─── Helper: register a route on both the provider-prefixed path and the alias ───
           function registerRoute(
             primaryPath: string,
@@ -88,6 +132,7 @@ export default defineConfig(({ mode }) => {
 
           // ─── POST /api/deepseek/translate (primary) + /api/translate (alias) ──────────
           registerRoute('/api/deepseek/translate', '/api/translate', async (req, res) => {
+            const startedAt = Date.now()
             if (req.method !== 'POST') {
               res.statusCode = 405
               res.end(JSON.stringify({ error: { code: 405, message: 'Method not allowed' } }))
@@ -98,6 +143,11 @@ export default defineConfig(({ mode }) => {
               const apiKey = env.DEEPSEEK_API_KEY
 
               if (!apiKey) {
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/translate',
+                  status: 'not_configured',
+                  startedAt,
+                })
                 res.statusCode = 503
                 res.end(JSON.stringify({
                   error: {
@@ -163,14 +213,14 @@ export default defineConfig(({ mode }) => {
               const systemPrompt = `You are a precise translator. Translate the following ${sourceLang} text to ${targetLang}. Respond with ONLY the translated text, no explanations, no quotes, no formatting.`
               const userPrompt = text
 
-              const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
+              const deepseekRes = await fetch(`${deepseekBaseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  model: 'deepseek-v4-flash',
+                  model: deepseekModel,
                   thinking: { type: 'disabled' },
                   messages: [
                     { role: 'system', content: systemPrompt },
@@ -183,6 +233,11 @@ export default defineConfig(({ mode }) => {
 
               if (!deepseekRes.ok) {
                 const errorText = await deepseekRes.text()
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/translate',
+                  status: `http_${deepseekRes.status}`,
+                  startedAt,
+                })
                 res.statusCode = deepseekRes.status
                 res.end(JSON.stringify({
                   error: {
@@ -196,18 +251,29 @@ export default defineConfig(({ mode }) => {
               const deepseekData = await deepseekRes.json() as DeepSeekResponse
               const translatedText = deepseekData.choices?.[0]?.message?.content?.trim() ?? ''
 
-              // Runtime usage logging — JSONL
-              if (deepseekData.usage) {
-                const { prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens } = deepseekData.usage
-                logJsonl({
-                  endpoint: 'translate',
-                  total_tokens,
-                  prompt_tokens,
-                  completion_tokens,
-                  prompt_cache_hit_tokens,
-                  prompt_cache_miss_tokens,
+              if (!translatedText) {
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/translate',
+                  status: 'invalid_response',
+                  startedAt,
+                  response: deepseekData,
                 })
+                res.statusCode = 502
+                res.end(JSON.stringify({
+                  error: {
+                    code: 502,
+                    message: 'DeepSeek translate response was empty',
+                  },
+                }))
+                return
               }
+
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/translate',
+                status: 'success',
+                startedAt,
+                response: deepseekData,
+              })
 
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
               res.end(JSON.stringify([{
@@ -215,6 +281,11 @@ export default defineConfig(({ mode }) => {
                 detectedLanguage: { language: from || 'en', score: 1.0 },
               }]))
             } catch (error) {
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/translate',
+                status: 'exception',
+                startedAt,
+              })
               res.statusCode = 500
               res.end(JSON.stringify({
                 error: {
@@ -227,6 +298,7 @@ export default defineConfig(({ mode }) => {
 
           // ─── POST /api/deepseek/dictionary-lookup (primary) + /api/dictionary-lookup (alias) ──
           registerRoute('/api/deepseek/dictionary-lookup', '/api/dictionary-lookup', async (req, res) => {
+            const startedAt = Date.now()
             if (req.method !== 'POST') {
               res.statusCode = 405
               res.end(JSON.stringify({ error: { code: 405, message: 'Method not allowed' } }))
@@ -237,6 +309,11 @@ export default defineConfig(({ mode }) => {
               const apiKey = env.DEEPSEEK_API_KEY
 
               if (!apiKey) {
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/dictionary-lookup',
+                  status: 'not_configured',
+                  startedAt,
+                })
                 res.statusCode = 503
                 res.end(JSON.stringify({
                   error: {
@@ -317,14 +394,14 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
 
 Include multiple translations for different meanings. Sort by confidence descending.`
 
-              const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
+              const deepseekRes = await fetch(`${deepseekBaseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  model: 'deepseek-v4-flash',
+                  model: deepseekModel,
                   thinking: { type: 'disabled' },
                   response_format: { type: 'json_object' },
                   messages: [
@@ -338,6 +415,11 @@ Include multiple translations for different meanings. Sort by confidence descend
 
               if (!deepseekRes.ok) {
                 const errorText = await deepseekRes.text()
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/dictionary-lookup',
+                  status: `http_${deepseekRes.status}`,
+                  startedAt,
+                })
                 res.statusCode = deepseekRes.status
                 res.end(JSON.stringify({
                   error: {
@@ -350,19 +432,6 @@ Include multiple translations for different meanings. Sort by confidence descend
 
               const deepseekData = await deepseekRes.json() as DeepSeekResponse
               const content = deepseekData.choices?.[0]?.message?.content?.trim() ?? ''
-
-              // Runtime usage logging — JSONL
-              if (deepseekData.usage) {
-                const { prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens } = deepseekData.usage
-                logJsonl({
-                  endpoint: 'dictionary-lookup',
-                  total_tokens,
-                  prompt_tokens,
-                  completion_tokens,
-                  prompt_cache_hit_tokens,
-                  prompt_cache_miss_tokens,
-                })
-              }
 
               // Parse the JSON response from DeepSeek
               let parsed: { translations?: unknown[] }
@@ -382,16 +451,63 @@ Include multiple translations for different meanings. Sort by confidence descend
                 throw new Error('DeepSeek dictionary response missing "translations" array')
               }
 
-              // Validate each translation item has required string fields
-              const validatedTranslations = parsed.translations.filter((t: unknown) => {
-                if (!t || typeof t !== 'object') return false
+              // Validate each translation item has required fields and optional backTranslations shape
+              const validatedTranslations = parsed.translations.flatMap((t: unknown) => {
+                if (!t || typeof t !== 'object') return []
                 const item = t as Record<string, unknown>
-                return (
+                const baseValid =
                   typeof item.normalizedTarget === 'string' &&
                   typeof item.displayTarget === 'string' &&
                   typeof item.posTag === 'string' &&
                   typeof item.confidence === 'number'
-                )
+
+                if (!baseValid) {
+                  return []
+                }
+
+                const validatedBackTranslations = Array.isArray(item.backTranslations)
+                  ? item.backTranslations.filter((backTranslation) => {
+                      if (!backTranslation || typeof backTranslation !== 'object') return false
+                      const backItem = backTranslation as Record<string, unknown>
+                      return (
+                        typeof backItem.normalizedText === 'string' &&
+                        typeof backItem.displayText === 'string' &&
+                        typeof backItem.numExamples === 'number' &&
+                        typeof backItem.frequencyCount === 'number'
+                      )
+                    })
+                  : undefined
+
+                return [
+                  {
+                    ...item,
+                    backTranslations: validatedBackTranslations,
+                  },
+                ]
+              })
+
+              if (validatedTranslations.length === 0) {
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/dictionary-lookup',
+                  status: 'invalid_response',
+                  startedAt,
+                  response: deepseekData,
+                })
+                res.statusCode = 502
+                res.end(JSON.stringify({
+                  error: {
+                    code: 502,
+                    message: 'DeepSeek dictionary response produced no valid translations',
+                  },
+                }))
+                return
+              }
+
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/dictionary-lookup',
+                status: 'success',
+                startedAt,
+                response: deepseekData,
               })
 
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -401,6 +517,11 @@ Include multiple translations for different meanings. Sort by confidence descend
                 translations: validatedTranslations,
               }]))
             } catch (error) {
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/dictionary-lookup',
+                status: 'exception',
+                startedAt,
+              })
               res.statusCode = 500
               res.end(JSON.stringify({
                 error: {
@@ -413,6 +534,7 @@ Include multiple translations for different meanings. Sort by confidence descend
 
           // ─── POST /api/deepseek/sense-block (primary) + /api/sense-block (alias) ──────────
           registerRoute('/api/deepseek/sense-block', '/api/sense-block', async (req, res) => {
+            const startedAt = Date.now()
             if (req.method !== 'POST') {
               res.statusCode = 405
               res.end(JSON.stringify({ error: { code: 405, message: 'Method not allowed' } }))
@@ -423,6 +545,11 @@ Include multiple translations for different meanings. Sort by confidence descend
               const apiKey = env.DEEPSEEK_API_KEY
 
               if (!apiKey) {
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/sense-block',
+                  status: 'not_configured',
+                  startedAt,
+                })
                 res.statusCode = 503
                 res.end(JSON.stringify({
                   error: {
@@ -473,14 +600,14 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
                 nextLines: parsedBody.nextLines || '',
               })
 
-              const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
+              const deepseekRes = await fetch(`${deepseekBaseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  model: 'deepseek-v4-flash',
+                  model: deepseekModel,
                   thinking: { type: 'disabled' },
                   response_format: { type: 'json_object' },
                   messages: [
@@ -494,6 +621,11 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
 
               if (!deepseekRes.ok) {
                 const errorText = await deepseekRes.text()
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/sense-block',
+                  status: `http_${deepseekRes.status}`,
+                  startedAt,
+                })
                 res.statusCode = deepseekRes.status
                 res.end(JSON.stringify({
                   error: { code: deepseekRes.status, message: `DeepSeek API error: ${errorText}` },
@@ -503,19 +635,6 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
 
               const deepseekData = await deepseekRes.json() as DeepSeekResponse
               const content = deepseekData.choices?.[0]?.message?.content?.trim() ?? ''
-
-              // Runtime usage logging — JSONL
-              if (deepseekData.usage) {
-                const { prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens } = deepseekData.usage
-                logJsonl({
-                  endpoint: 'sense-block',
-                  total_tokens,
-                  prompt_tokens,
-                  completion_tokens,
-                  prompt_cache_hit_tokens,
-                  prompt_cache_miss_tokens,
-                })
-              }
 
               let senseBlock: Record<string, unknown>
               try {
@@ -538,8 +657,28 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
                 typeof senseBlock.sense !== 'string' ||
                 typeof senseBlock.usageNote !== 'string'
               ) {
-                throw new Error('DeepSeek sense-block response missing required string fields')
+                writeRuntimeLog({
+                  endpoint: '/api/deepseek/sense-block',
+                  status: 'invalid_response',
+                  startedAt,
+                  response: deepseekData,
+                })
+                res.statusCode = 502
+                res.end(JSON.stringify({
+                  error: {
+                    code: 502,
+                    message: 'DeepSeek sense-block response missing required string fields',
+                  },
+                }))
+                return
               }
+
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/sense-block',
+                status: 'success',
+                startedAt,
+                response: deepseekData,
+              })
 
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
               res.end(JSON.stringify({
@@ -550,6 +689,11 @@ Respond with a valid JSON object (no markdown, no code fences) in this exact for
                 usageNote: senseBlock.usageNote,
               }))
             } catch (error) {
+              writeRuntimeLog({
+                endpoint: '/api/deepseek/sense-block',
+                status: 'exception',
+                startedAt,
+              })
               res.statusCode = 500
               res.end(JSON.stringify({
                 error: { code: 500, message: error instanceof Error ? error.message : 'Unknown error' },
