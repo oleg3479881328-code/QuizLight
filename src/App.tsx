@@ -74,6 +74,7 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [cards, setCards] = useState<Card[]>(() => loadCards())
   const [draft, setDraft] = useState<CardDraft>(emptyDraft)
+  const draftRef = useRef(draft)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [lastEditedField, setLastEditedField] = useState<keyof CardDraft>('russian')
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -121,6 +122,10 @@ function App() {
   const englishFieldId = useId()
   const imageFieldId = useId()
   const youtubeFieldId = useId()
+
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -695,25 +700,25 @@ function App() {
       return
     }
 
-    setDraft((current) => {
-      if (
-        current.targetLine !== window.targetEntry.text ||
-        current.english.trim() !== currentEnglish ||
-        current.russian.trim() !== currentRussian
-      ) {
-        return current
-      }
+    const currentDraft = draftRef.current
+    const isAcceptedCandidateResult =
+      currentDraft.targetLine === window.targetEntry.text &&
+      currentDraft.english.trim() === currentEnglish &&
+      currentDraft.russian.trim() === currentRussian
 
-      return {
-        ...current,
-        situation: senseBlockResult.senseBlock.situation,
-        intent: senseBlockResult.senseBlock.intent,
-        tone: senseBlockResult.senseBlock.tone,
-        sense: senseBlockResult.senseBlock.sense,
-        usageNote: senseBlockResult.senseBlock.usageNote,
-        russian: translationResult.ok ? translationResult.data.text : current.russian,
-      }
-    })
+    if (!isAcceptedCandidateResult) {
+      return
+    }
+
+    setDraft((current) => ({
+      ...current,
+      situation: senseBlockResult.senseBlock.situation,
+      intent: senseBlockResult.senseBlock.intent,
+      tone: senseBlockResult.senseBlock.tone,
+      sense: senseBlockResult.senseBlock.sense,
+      usageNote: senseBlockResult.senseBlock.usageNote,
+      russian: translationResult.ok ? translationResult.data.text : current.russian,
+    }))
 
     if (translationResult.ok) {
       setTranslationProvider(translationResult.data.provider)
@@ -722,6 +727,9 @@ function App() {
           ? 'DeepSeek недоступен — использована локальная подсказка.'
           : null,
       )
+    } else {
+      setTranslationProvider(null)
+      setTranslationFallbackNote(null)
     }
   }
 
@@ -805,20 +813,21 @@ function App() {
 
     const autoRussian = translationResult.ok ? translationResult.data.text : ''
     const provider = translationResult.ok ? translationResult.data.provider : 'local-fallback'
+    const currentDraft = draftRef.current
+    const isAcceptedTranscriptResult = currentDraft.english === clickedPhrase
+
+    if (!isAcceptedTranscriptResult) return
 
     // 4. Apply draft and provider state at the same accepted point
-    setDraft((current) => {
-      if (current.english !== clickedPhrase) return current
-      return {
-        ...current,
-        russian: autoRussian,
-        situation: senseBlockResult.senseBlock.situation,
-        intent: senseBlockResult.senseBlock.intent,
-        tone: senseBlockResult.senseBlock.tone,
-        sense: senseBlockResult.senseBlock.sense,
-        usageNote: senseBlockResult.senseBlock.usageNote,
-      }
-    })
+    setDraft((current) => ({
+      ...current,
+      russian: autoRussian,
+      situation: senseBlockResult.senseBlock.situation,
+      intent: senseBlockResult.senseBlock.intent,
+      tone: senseBlockResult.senseBlock.tone,
+      sense: senseBlockResult.senseBlock.sense,
+      usageNote: senseBlockResult.senseBlock.usageNote,
+    }))
 
     setTranslationProvider(provider)
     setTranslationFallbackNote(

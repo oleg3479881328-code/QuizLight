@@ -39,17 +39,17 @@ Replace Azure Translator with DeepSeek as the active AI provider for the persona
 
 ## Current Repository State
 
-Latest commit:
+Latest reviewed baseline commit:
 
-`4dfb99d` — fix: apply all 7 ChatGPT review items for DeepSeek bounded revision
+`4a3da22` — fix: close DeepSeek bounded revision gaps
 
 Working tree status:
 
-`BOUNDED_REVISION_READY_TO_COMMIT` — transcript flow, stale-response protection, and DeepSeek runtime logging fixes prepared locally
+`READY_FOR_REVIEW_COMMIT` — provider UI stale-result guards and coordination snapshot correction are validated and ready for the next review pass
 
 Current coordination status:
 
-`BOUNDED_REVISION_READY_TO_COMMIT — pending one minimal revision commit and execution report in GitHub Issue #3`
+`AWAITING_REVIEW — one minimal follow-up revision is ready to be reviewed in GitHub Issue #3`
 
 
 ## Accepted Decisions (Issue #3)
@@ -156,10 +156,10 @@ The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Executor (Codex) to:
-1. push one minimal bounded revision commit for the current working tree
-2. post a signed Patch Execution Report in Issue #3
-3. wait for reviewer confirmation or another bounded revision request
+Reviewer (ChatGPT) to:
+1. review the minimal follow-up revision for provider UI stale-result guards
+2. verify the repaired coordination snapshot
+3. approve or request one further bounded change in Issue #3
 
 
 ## Update Rule

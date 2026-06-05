@@ -300,3 +300,41 @@ Evidence:
 
 Next Step:
 Push one minimal revision commit to `origin/master`, update `AI_COORDINATION_STATE.md` to the new awaiting-review state, and post a signed Patch Execution Report in Issue #3.
+
+## 2026-06-05 11:50:24 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Review Blocked — Provider UI Guard and Snapshot Correction
+Project: QuizLight
+
+Summary:
+Review of commit `4a3da22` confirmed the main bounded revision improvements but remained blocked on two UI-coupling details and one stale coordination snapshot. `applyMatchCandidate()` could still update the provider label after rejecting a stale draft update, `handleTranscriptLineClick()` needed the same provider UI coupling to accepted request state, and `AI_COORDINATION_STATE.md` still reflected the older pre-push snapshot around commit `4dfb99d`.
+
+Evidence:
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Reviewed commit: `4a3da22`
+- Reviewer message type: `Review Request / Coordination Repair`
+
+Next Step:
+Executor applies one minimal bounded follow-up revision, updates the coordination snapshot, validates build and lint, and posts a signed Patch Execution Report in Issue #3.
+
+## 2026-06-05 11:50:24 America/New_York
+
+Actor: Codex
+Type: Bounded Revision Applied — Provider UI Guards and Snapshot Repair
+Project: QuizLight
+
+Summary:
+Applied the minimal follow-up revision requested after review of commit `4a3da22`. Provider UI updates in `applyMatchCandidate()` and `handleTranscriptLineClick()` are now coupled to the same accepted current-request state as the draft application via `draftRef`, preventing late rejected results from changing the provider label or fallback note. The coordination snapshot was also repaired to reflect the `4a3da22` baseline and the current in-progress follow-up revision state before the next signed execution report.
+
+Evidence:
+- Files changed:
+  - `src/App.tsx`
+  - `AI_COORDINATION_LOG.md`
+  - `AI_COORDINATION_STATE.md`
+- Intended validation:
+  - `npm run build`
+  - `npm run lint`
+
+Next Step:
+Push one minimal follow-up revision commit to `origin/master`, post a signed Patch Execution Report in Issue #3, and return coordination status to `AWAITING_REVIEW`.
