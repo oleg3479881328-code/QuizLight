@@ -3,6 +3,7 @@
 - Project: `QuizLight`
 - State date: `2026-06-03`
 - Last update: `2026-06-03` (добавлен второй блок project-specific опыта: text learning, decks/chains, free core + paid AI, dollar pay-as-you-go, privacy storage, teacher referrals, multilingual UI)
+- Last update: `2026-06-05` (добавлен design architecture document for GitHub issue #4)
 - State type: transfer-ready
 - Lifecycle position:
   - bootstrap completed
@@ -76,6 +77,7 @@
 
 # Current Safe Next Action
 
+- Use `docs/design/QUIZLIGHT_V0_DESIGN_ARCHITECTURE.md` as the frontend design handoff baseline.
 - Expand the local translation suggestion bank in `src/lib/suggestions.ts` for better auto-translate coverage
 - Improve YouTube Scene Player UX (loading states, error handling, mobile responsiveness)
 - Add ability to edit scene timestamps directly in the context editor
@@ -93,6 +95,7 @@
 - [AGENTS.md](C:/Users/oleg3/Documents/QuizLight/AGENTS.md)
 - [PROJECT_STATE.md](C:/Users/oleg3/Documents/QuizLight/PROJECT_STATE.md)
 - [logs/latest.md](C:/Users/oleg3/Documents/QuizLight/logs/latest.md)
+- `docs/design/QUIZLIGHT_V0_DESIGN_ARCHITECTURE.md`
 - `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md`
 
 # Do Not Break
