@@ -3,6 +3,7 @@
 - Project: `QuizLight`
 - State date: `2026-06-03`
 - Last update: `2026-06-03` (добавлен второй блок project-specific опыта: text learning, decks/chains, free core + paid AI, dollar pay-as-you-go, privacy storage, teacher referrals, multilingual UI)
+- Last update: `2026-06-05` (design architecture document refreshed in PR #5 to match the actual current QuizLight surface: manual cards + YouTube transcript/context + scene playback + DeepSeek-backed assists)
 - State type: transfer-ready
 - Lifecycle position:
   - bootstrap completed
@@ -76,6 +77,7 @@
 
 # Current Safe Next Action
 
+- Use `docs/design/QUIZLIGHT_V0_DESIGN_ARCHITECTURE.md` as the refreshed frontend design handoff baseline for PR `#5`.
 - Expand the local translation suggestion bank in `src/lib/suggestions.ts` for better auto-translate coverage
 - Improve YouTube Scene Player UX (loading states, error handling, mobile responsiveness)
 - Add ability to edit scene timestamps directly in the context editor
@@ -93,6 +95,7 @@
 - [AGENTS.md](C:/Users/oleg3/Documents/QuizLight/AGENTS.md)
 - [PROJECT_STATE.md](C:/Users/oleg3/Documents/QuizLight/PROJECT_STATE.md)
 - [logs/latest.md](C:/Users/oleg3/Documents/QuizLight/logs/latest.md)
+- `docs/design/QUIZLIGHT_V0_DESIGN_ARCHITECTURE.md`
 - `docs/REFERENCE_IDEAS_IMPLEMENTATION_BACKLOG.md`
 
 # Do Not Break
@@ -139,6 +142,7 @@
   - cards can be created, edited, deleted, and persisted locally
   - the focused card can flip and speak both sides
   - YouTube transcript can be loaded and used to create context scene cards
+  - the design architecture handoff reflects the actual current app surface, including transcript/context/scene flow
   - transfer-ready state remains intact after changes
 - Validation:
   - project entry files clearly reflect the new decision
