@@ -10,6 +10,7 @@ import {
   extractYoutubeId,
   findPhraseInTranscript,
   formatTime,
+  generateSenseBlock,
   parseTranscriptJson,
 } from './lib/transcript'
 import { translateText, dictionaryLookup } from './lib/translation/translationService'
@@ -73,6 +74,7 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme)
   const [cards, setCards] = useState<Card[]>(() => loadCards())
   const [draft, setDraft] = useState<CardDraft>(emptyDraft)
+  const draftRef = useRef(draft)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [lastEditedField, setLastEditedField] = useState<keyof CardDraft>('russian')
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -104,6 +106,8 @@ function App() {
   const abortControllerRef = useRef<AbortController | null>(null)
   const transcriptAbortControllerRef = useRef<AbortController | null>(null)
   const transcriptRequestIdRef = useRef(0)
+  const candidateAbortControllerRef = useRef<AbortController | null>(null)
+  const candidateRequestIdRef = useRef(0)
   const russianManualEditVersionRef = useRef(0)
   const [translationProvider, setTranslationProvider] = useState<'deepseek' | 'local-fallback' | null>(null)
   const [translationFallbackNote, setTranslationFallbackNote] = useState<string | null>(null)
@@ -118,6 +122,10 @@ function App() {
   const englishFieldId = useId()
   const imageFieldId = useId()
   const youtubeFieldId = useId()
+
+  useEffect(() => {
+    draftRef.current = draft
+  }, [draft])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -184,6 +192,12 @@ function App() {
     transcriptAbortControllerRef.current?.abort()
     transcriptAbortControllerRef.current = null
     transcriptRequestIdRef.current += 1
+  }
+
+  function invalidateMatchCandidateResolution() {
+    candidateAbortControllerRef.current?.abort()
+    candidateAbortControllerRef.current = null
+    candidateRequestIdRef.current += 1
   }
 
   function updateDraft(field: keyof CardDraft, value: string | number | undefined) {
@@ -263,6 +277,7 @@ function App() {
 
   function resetForm() {
     invalidateTranscriptTranslation()
+    invalidateMatchCandidateResolution()
     setDraft(emptyDraft)
     setEditingId(null)
     setLastEditedField('russian')
@@ -629,15 +644,21 @@ function App() {
     }
     if (!transcript) return
 
-    const window = extractContextWindow(transcript, candidate.index)
+    candidateAbortControllerRef.current?.abort()
+    const controller = new AbortController()
+    candidateAbortControllerRef.current = controller
+    const requestId = ++candidateRequestIdRef.current
 
-    const { senseBlock } = await fetchSenseBlock(
-      draft.english.trim(),
-      draft.russian.trim(),
-      window.previousLines,
-      window.nextLines,
-      window.targetEntry,
-    )
+    const window = extractContextWindow(transcript, candidate.index)
+    const currentEnglish = draft.english.trim()
+    const currentRussian = draft.russian.trim()
+    const localSenseBlock = generateSenseBlock({
+      previousLines: window.previousLines,
+      targetEntry: window.targetEntry,
+      nextLines: window.nextLines,
+      phrase: currentEnglish,
+      translation: currentRussian,
+    })
 
     setDraft((current) => ({
       ...current,
@@ -648,15 +669,68 @@ function App() {
       previousLines: window.previousLines.map((l) => l.text).join('\n'),
       targetLine: window.targetEntry.text,
       nextLines: window.nextLines.map((l) => l.text).join('\n'),
-      situation: senseBlock.situation,
-      intent: senseBlock.intent,
-      tone: senseBlock.tone,
-      sense: senseBlock.sense,
-      usageNote: senseBlock.usageNote,
+      situation: localSenseBlock.situation,
+      intent: localSenseBlock.intent,
+      tone: localSenseBlock.tone,
+      sense: localSenseBlock.sense,
+      usageNote: localSenseBlock.usageNote,
       confidenceScore: candidate.confidence,
     }))
 
     setShowContextEditor(true)
+
+    const [senseBlockResult, translationResult] = await Promise.all([
+      fetchSenseBlock(
+        currentEnglish,
+        currentRussian,
+        window.previousLines,
+        window.nextLines,
+        window.targetEntry,
+        controller.signal,
+      ),
+      currentEnglish
+        ? translateText(currentEnglish, 'en', 'ru', controller.signal)
+        : Promise.resolve({
+            ok: false as const,
+            error: { code: 400, message: 'Empty text' },
+          }),
+    ])
+
+    if (controller.signal.aborted || requestId !== candidateRequestIdRef.current) {
+      return
+    }
+
+    const currentDraft = draftRef.current
+    const isAcceptedCandidateResult =
+      currentDraft.targetLine === window.targetEntry.text &&
+      currentDraft.english.trim() === currentEnglish &&
+      currentDraft.russian.trim() === currentRussian
+
+    if (!isAcceptedCandidateResult) {
+      return
+    }
+
+    setDraft((current) => ({
+      ...current,
+      situation: senseBlockResult.senseBlock.situation,
+      intent: senseBlockResult.senseBlock.intent,
+      tone: senseBlockResult.senseBlock.tone,
+      sense: senseBlockResult.senseBlock.sense,
+      usageNote: senseBlockResult.senseBlock.usageNote,
+      russian: translationResult.ok ? translationResult.data.text : current.russian,
+    }))
+
+    if (translationResult.ok) {
+      setTranslationProvider(translationResult.data.provider)
+      setTranslationFallbackNote(
+        translationResult.data.provider === 'local-fallback'
+          ? 'DeepSeek недоступен — использована локальная подсказка.'
+          : null,
+      )
+    } else {
+      setTranslationProvider(null)
+      setTranslationFallbackNote(null)
+    }
   }
 
   function selectMatchCandidate(index: number) {
@@ -687,6 +761,13 @@ function App() {
     const window = extractContextWindow(transcript, index)
 
     const clickedPhrase = entry.text
+    const localSenseBlock = generateSenseBlock({
+      previousLines: window.previousLines,
+      targetEntry: window.targetEntry,
+      nextLines: window.nextLines,
+      phrase: entry.text,
+      translation: '',
+    })
 
     setPlayFromTranscriptSeconds(entry.start)
 
@@ -700,38 +781,29 @@ function App() {
       previousLines: window.previousLines.map((l) => l.text).join('\n'),
       targetLine: window.targetEntry.text,
       nextLines: window.nextLines.map((l) => l.text).join('\n'),
+      situation: localSenseBlock.situation,
+      intent: localSenseBlock.intent,
+      tone: localSenseBlock.tone,
+      sense: localSenseBlock.sense,
+      usageNote: localSenseBlock.usageNote,
       confidenceScore: 1.0,
     }))
 
     setShowContextEditor(true)
     setTranscriptError(null)
 
-    // 2. Try async sense-block via DeepSeek (with local fallback)
-    const { senseBlock } = await fetchSenseBlock(
-      entry.text,
-      '',
-      window.previousLines,
-      window.nextLines,
-      window.targetEntry,
-      controller.signal,
-    )
-    if (controller.signal.aborted) return
-
-    // 3. Apply sense-block to draft (stale-response guard via english field check)
-    setDraft((current) => {
-      if (current.english !== clickedPhrase) return current
-      return {
-        ...current,
-        situation: senseBlock.situation,
-        intent: senseBlock.intent,
-        tone: senseBlock.tone,
-        sense: senseBlock.sense,
-        usageNote: senseBlock.usageNote,
-      }
-    })
-
-    // 4. Try async EN→RU translation via DeepSeek (with local fallback)
-    const translationResult = await translateText(entry.text, 'en', 'ru', controller.signal)
+    // 2. Run DeepSeek sense-block replacement and EN→RU translation in parallel
+    const [senseBlockResult, translationResult] = await Promise.all([
+      fetchSenseBlock(
+        entry.text,
+        '',
+        window.previousLines,
+        window.nextLines,
+        window.targetEntry,
+        controller.signal,
+      ),
+      translateText(entry.text, 'en', 'ru', controller.signal),
+    ])
 
     if (controller.signal.aborted) return
 
@@ -741,12 +813,21 @@ function App() {
 
     const autoRussian = translationResult.ok ? translationResult.data.text : ''
     const provider = translationResult.ok ? translationResult.data.provider : 'local-fallback'
+    const currentDraft = draftRef.current
+    const isAcceptedTranscriptResult = currentDraft.english === clickedPhrase
+
+    if (!isAcceptedTranscriptResult) return
 
     // 4. Apply draft and provider state at the same accepted point
-    setDraft((current) => {
-      if (current.english !== clickedPhrase) return current
-      return { ...current, russian: autoRussian }
-    })
+    setDraft((current) => ({
+      ...current,
+      russian: autoRussian,
+      situation: senseBlockResult.senseBlock.situation,
+      intent: senseBlockResult.senseBlock.intent,
+      tone: senseBlockResult.senseBlock.tone,
+      sense: senseBlockResult.senseBlock.sense,
+      usageNote: senseBlockResult.senseBlock.usageNote,
+    }))
 
     setTranslationProvider(provider)
     setTranslationFallbackNote(

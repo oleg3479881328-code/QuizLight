@@ -35,17 +35,21 @@ The executor role is model-neutral. A future executor may be Codex, DeepSeek, Cl
 
 ## Current Task
 
-Replace Azure Translator with DeepSeek as the active AI provider for the personal testing phase.
+DeepSeek integration for the personal testing phase — completed and accepted.
 
 ## Current Repository State
 
-Latest commit:
+Accepted implementation baseline:
 
-`4dfb99d` — fix: apply all 7 ChatGPT review items for DeepSeek bounded revision
+`2210ff06763f551e40017e89c1600d25d4e083b2` — fix: guard provider ui for stale transcript results
+
+Working tree status:
+
+`CLEAN` — bookkeeping closure only, no pending implementation changes in the working tree
 
 Current coordination status:
 
-`BOUNDED_REVISION_APPLIED — awaiting reviewer confirmation in GitHub Issue #3`
+`COMPLETED_AND_ACCEPTED — current DeepSeek integration task is accepted in GitHub Issue #3`
 
 
 ## Accepted Decisions (Issue #3)
@@ -87,15 +91,7 @@ Current coordination status:
 
 ## Open Review Items
 
-All items from the Azure Translator integration (Issue #1, Issue #2) have been applied and accepted:
-
-1. ✅ Route local Russian suggestion selection through `updateDraft('russian', value)`
-2. ✅ Add `invalidateTranscriptTranslation()` helper
-3. ✅ Invalidate pending transcript translation when English field is changed, English suggestion applied, or form reset
-4. ✅ Route local English suggestion selection through `updateDraft('english', value)`
-5. ✅ In `resetForm()`: invalidate pending translation, clear provider label, clear fallback note
-6. ✅ `handleTranslateRuToEn` routes through `updateDraft('english', result.data.text)`
-7. ✅ `handleTranslateEnToRu` routes through `updateDraft('russian', result.data.text)`
+No open review items remain for the current DeepSeek integration task in Issue #3.
 
 ## API Model Runtime Check
 
@@ -152,10 +148,7 @@ The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Reviewer (ChatGPT) to:
-1. Review the bounded revision commit `4dfb99d`
-2. Confirm all 7 review items are correctly applied
-3. Approve or request changes in Issue #3
+Resume the paused design-architecture workstream in PR #5 and align it to the actual current QuizLight product surface.
 
 
 ## Update Rule

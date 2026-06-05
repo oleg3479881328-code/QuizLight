@@ -261,3 +261,116 @@ Evidence:
 
 Next Step:
 Reviewer (ChatGPT) to review the bounded revision commit `4dfb99d` and approve or request changes in Issue #3.
+
+## 2026-06-05 10:11:56 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Review Blocked
+Project: QuizLight
+
+Summary:
+Review of commit `4dfb99d` remained blocked in GitHub Issue #3. A new bounded revision was required to restore immediate local sense-block fill on transcript click, run transcript translation and DeepSeek sense-block replacement in parallel, protect `applyMatchCandidate()` from stale late responses, complete the DeepSeek JSONL runtime contract, read `DEEPSEEK_BASE_URL` and `DEEPSEEK_MODEL` from env, warn on runtime-log write failures, and reject empty validated dictionary output while validating optional nested `backTranslations`.
+
+Evidence:
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Reviewed commit: `4dfb99d`
+- Reviewer message type: `Revision Request`
+
+Next Step:
+Executor applies one minimal bounded revision, validates build and lint, updates coordination files, and posts a structured Patch Execution Report in Issue #3.
+
+## 2026-06-05 10:11:56 America/New_York
+
+Actor: Codex
+Type: Bounded Revision Applied — Transcript and Runtime Logging Fixes
+Project: QuizLight
+
+Summary:
+Applied the bounded revision requested after review of commit `4dfb99d`. Transcript click now fills a local sense block synchronously before any await, then runs DeepSeek sense-block replacement and EN→RU translation in parallel. `applyMatchCandidate()` now uses a dedicated `AbortController` and request id so late candidate resolution cannot overwrite a newer selection. DeepSeek middleware now reads `DEEPSEEK_BASE_URL` and `DEEPSEEK_MODEL` from env, writes JSONL runtime records with the required token/cache fields, warns on runtime-log write failure, and rejects empty validated dictionary output while validating optional nested `backTranslations`.
+
+Evidence:
+- Files changed:
+  - `src/App.tsx`
+  - `vite.config.ts`
+  - `AI_COORDINATION_LOG.md`
+  - `AI_COORDINATION_STATE.md`
+- Validation:
+  - `npm run build` — 0 errors
+  - `npm run lint` — 0 errors
+
+Next Step:
+Push one minimal revision commit to `origin/master`, update `AI_COORDINATION_STATE.md` to the new awaiting-review state, and post a signed Patch Execution Report in Issue #3.
+
+## 2026-06-05 11:50:24 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Review Blocked — Provider UI Guard and Snapshot Correction
+Project: QuizLight
+
+Summary:
+Review of commit `4a3da22` confirmed the main bounded revision improvements but remained blocked on two UI-coupling details and one stale coordination snapshot. `applyMatchCandidate()` could still update the provider label after rejecting a stale draft update, `handleTranscriptLineClick()` needed the same provider UI coupling to accepted request state, and `AI_COORDINATION_STATE.md` still reflected the older pre-push snapshot around commit `4dfb99d`.
+
+Evidence:
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Reviewed commit: `4a3da22`
+- Reviewer message type: `Review Request / Coordination Repair`
+
+Next Step:
+Executor applies one minimal bounded follow-up revision, updates the coordination snapshot, validates build and lint, and posts a signed Patch Execution Report in Issue #3.
+
+## 2026-06-05 11:50:24 America/New_York
+
+Actor: Codex
+Type: Bounded Revision Applied — Provider UI Guards and Snapshot Repair
+Project: QuizLight
+
+Summary:
+Applied the minimal follow-up revision requested after review of commit `4a3da22`. Provider UI updates in `applyMatchCandidate()` and `handleTranscriptLineClick()` are now coupled to the same accepted current-request state as the draft application via `draftRef`, preventing late rejected results from changing the provider label or fallback note. The coordination snapshot was also repaired to reflect the `4a3da22` baseline and the current in-progress follow-up revision state before the next signed execution report.
+
+Evidence:
+- Files changed:
+  - `src/App.tsx`
+  - `AI_COORDINATION_LOG.md`
+  - `AI_COORDINATION_STATE.md`
+- Intended validation:
+  - `npm run build`
+  - `npm run lint`
+
+Next Step:
+Push one minimal follow-up revision commit to `origin/master`, post a signed Patch Execution Report in Issue #3, and return coordination status to `AWAITING_REVIEW`.
+
+## 2026-06-05 12:02:00 America/New_York
+
+Actor: ChatGPT — Reviewer and Architect
+Type: Review Accepted — DeepSeek Integration Task Complete
+Project: QuizLight
+
+Summary:
+Review of commit `2210ff0` is accepted in GitHub Issue #3. The provider-UI stale-result corrections are confirmed, the active durable AI-to-AI channel is repaired around Issue #3, and no further code correction is required for the current DeepSeek integration task.
+
+Evidence:
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Accepted commit: `2210ff06763f551e40017e89c1600d25d4e083b2`
+- Reviewer message type: `Review Accepted / Final Bookkeeping Request`
+
+Next Step:
+Executor performs bookkeeping-only closure: update coordination state to the accepted baseline, mark the DeepSeek task completed, set the next project step to resume the paused design-architecture workstream in PR #5, and post a short signed completion report in Issue #3.
+
+## 2026-06-05 12:02:00 America/New_York
+
+Actor: Codex
+Type: Bookkeeping Closure Applied — DeepSeek Coordination Completed
+Project: QuizLight
+
+Summary:
+Applied the requested bookkeeping-only closure after acceptance of commit `2210ff0`. The accepted implementation baseline is now recorded, the current DeepSeek integration task is marked completed and accepted, and the next project step is set to resume the paused design-architecture workstream in PR #5 against the actual current product surface.
+
+Evidence:
+- Files changed:
+  - `AI_COORDINATION_LOG.md`
+  - `AI_COORDINATION_STATE.md`
+- Accepted baseline:
+  - `2210ff06763f551e40017e89c1600d25d4e083b2`
+
+Next Step:
+Resume the paused design-architecture workstream in PR #5 and align it to the actual current QuizLight product surface.
