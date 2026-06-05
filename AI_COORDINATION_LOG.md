@@ -229,3 +229,35 @@ Evidence:
 
 Next Step:
 Executor applies the bounded revision requested in GitHub Issue #3, validates build and lint plus runtime logging behavior, appends a new implementation event at the bottom of this file, updates `AI_COORDINATION_STATE.md`, and posts a structured Patch Execution Report in Issue #3.
+
+## 2026-06-05 08:08 America/New_York
+
+Actor: Cline (Codex Agent)
+Type: Bounded Revision Applied — All 7 ChatGPT Review Items
+Project: QuizLight
+
+Summary:
+Applied all 7 items from ChatGPT's Revision Request in Issue #3. Changes span 5 files (+480/-133 lines).
+
+Items addressed:
+1. ✅ Created browser-facing senseBlockService.ts with fetchSenseBlock() — calls /api/sense-block, falls back to local generateSenseBlock(), validates response shape client-side
+2. ✅ Replaced console.log with JSONL runtime logging (logJsonl helper) in vite.config.ts — logs timestamp, endpoint, model, status, latency, token totals, cache hit/miss to logs/deepseek-runtime.jsonl
+3. ✅ Fixed dictionary JSON contract — DeepSeek prompt returns { "translations": [...] } wrapper; server-side validates each item has required fields
+4. ✅ Added sense-block server-side validation — requires all 5 string fields (situation, intent, tone, sense, usageNote)
+5. ✅ Replaced Azure 503 stubs with real executable Azure Translator code (translate + dictionary/lookup endpoints)
+6. ✅ Added provider-prefixed routes: /api/deepseek/translate, /api/deepseek/dictionary-lookup, /api/deepseek/sense-block (primary); old routes as aliases via registerRoute()
+7. ✅ Updated .env.example with DEEPSEEK_BASE_URL and DEEPSEEK_MODEL; removed stale deepseek-chat comment
+
+Additional fixes:
+- Fixed ESLint react-hooks/set-state-in-effect violations (queueMicrotask wrappers) in App.tsx and YouTubeScenePlayer.tsx
+- Fixed TS2448/TSC2454 hoisting errors in App.tsx (moved function declarations above useMemo)
+
+Evidence:
+- Commit: `4dfb99d` pushed to `origin/master`
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/3
+- Validation: `npm run build` — 0 errors ✅, `npm run lint` — 0 errors, 0 warnings ✅
+- Model: deepseek-v4-flash (thinking disabled, temperature 0.3)
+- Runtime logging: JSONL file logging for all 3 endpoints ✅
+
+Next Step:
+Reviewer (ChatGPT) to review the bounded revision commit `4dfb99d` and approve or request changes in Issue #3.
