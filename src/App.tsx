@@ -10,11 +10,11 @@ import {
   extractYoutubeId,
   findPhraseInTranscript,
   formatTime,
-  generateSenseBlock,
   parseTranscriptJson,
 } from './lib/transcript'
 import { translateText, dictionaryLookup } from './lib/translation/translationService'
 import type { DictionaryLookupResult } from './lib/translation/types'
+import { fetchSenseBlock } from './lib/senseBlockService'
 import YouTubeScenePlayer from './components/YouTubeScenePlayer'
 import type { Card, CardDraft, MatchCandidate, TranscriptEntry } from './types'
 import { YoutubeTranscript } from 'youtube-transcript'
@@ -134,12 +134,12 @@ function App() {
     const youtubeUrl = draft.youtubeUrl?.trim()
 
     if (!youtubeUrl) {
-      setParsedTranscript(null)
+      queueMicrotask(() => setParsedTranscript(null))
       return undefined
     }
 
     if (!extractYoutubeId(youtubeUrl)) {
-      setTranscriptError('Ссылка не распознана как YouTube URL.')
+      queueMicrotask(() => setTranscriptError('Ссылка не распознана как YouTube URL.'))
       return undefined
     }
 
@@ -148,6 +148,7 @@ function App() {
     }, 600)
 
     return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.youtubeUrl])
 
   function toggleTheme() {
@@ -178,6 +179,35 @@ function App() {
     () => getRussianSuggestions(draft.english),
     [draft.english],
   )
+  /** Abort pending transcript translation and increment request id to invalidate stale responses */
+  function invalidateTranscriptTranslation() {
+    transcriptAbortControllerRef.current?.abort()
+    transcriptAbortControllerRef.current = null
+    transcriptRequestIdRef.current += 1
+  }
+
+  function updateDraft(field: keyof CardDraft, value: string | number | undefined) {
+    setLastEditedField(field as keyof CardDraft)
+    if (field === 'russian') {
+      russianManualEditVersionRef.current += 1
+    }
+    if (field === 'english') {
+      invalidateTranscriptTranslation()
+    }
+    setDraft((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  function applyEnglishSuggestion(value: string) {
+    updateDraft('english', value)
+  }
+
+  function applyRussianSuggestion(value: string) {
+    updateDraft('russian', value)
+  }
+
   const activeSuggestions = useMemo(() => {
     const hasRussian = draft.russian.trim().length > 0
     const hasEnglish = draft.english.trim().length > 0
@@ -219,6 +249,7 @@ function App() {
     }
 
     return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     draft.english,
     draft.russian,
@@ -229,35 +260,6 @@ function App() {
 
   const isEditing = editingId !== null
   const isFlipped = selectedCard ? flippedCardId === selectedCard.id : false
-
-  /** Abort pending transcript translation and increment request id to invalidate stale responses */
-  function invalidateTranscriptTranslation() {
-    transcriptAbortControllerRef.current?.abort()
-    transcriptAbortControllerRef.current = null
-    transcriptRequestIdRef.current += 1
-  }
-
-  function updateDraft(field: keyof CardDraft, value: string | number | undefined) {
-    setLastEditedField(field as keyof CardDraft)
-    if (field === 'russian') {
-      russianManualEditVersionRef.current += 1
-    }
-    if (field === 'english') {
-      invalidateTranscriptTranslation()
-    }
-    setDraft((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  function applyEnglishSuggestion(value: string) {
-    updateDraft('english', value)
-  }
-
-  function applyRussianSuggestion(value: string) {
-    updateDraft('russian', value)
-  }
 
   function resetForm() {
     invalidateTranscriptTranslation()
@@ -617,7 +619,7 @@ function App() {
     applyMatchCandidate(candidates[0], transcript)
   }
 
-  function applyMatchCandidate(candidate: MatchCandidate, transcript?: ReturnType<typeof parseTranscriptJson>) {
+  async function applyMatchCandidate(candidate: MatchCandidate, transcript?: ReturnType<typeof parseTranscriptJson>) {
     if (!transcript && draft.transcriptJson) {
       try {
         transcript = parseTranscriptJson(draft.transcriptJson)
@@ -629,13 +631,13 @@ function App() {
 
     const window = extractContextWindow(transcript, candidate.index)
 
-    const senseBlock = generateSenseBlock({
-      previousLines: window.previousLines,
-      targetEntry: window.targetEntry,
-      nextLines: window.nextLines,
-      phrase: draft.english.trim(),
-      translation: draft.russian.trim(),
-    })
+    const { senseBlock } = await fetchSenseBlock(
+      draft.english.trim(),
+      draft.russian.trim(),
+      window.previousLines,
+      window.nextLines,
+      window.targetEntry,
+    )
 
     setDraft((current) => ({
       ...current,
@@ -683,13 +685,6 @@ function App() {
 
     // 1. Fill english and context IMMEDIATELY (synchronously) — don't wait for DeepSeek
     const window = extractContextWindow(transcript, index)
-    const senseBlock = generateSenseBlock({
-      previousLines: window.previousLines,
-      targetEntry: window.targetEntry,
-      nextLines: window.nextLines,
-      phrase: entry.text,
-      translation: '', // translation will come async
-    })
 
     const clickedPhrase = entry.text
 
@@ -705,19 +700,39 @@ function App() {
       previousLines: window.previousLines.map((l) => l.text).join('\n'),
       targetLine: window.targetEntry.text,
       nextLines: window.nextLines.map((l) => l.text).join('\n'),
-      situation: senseBlock.situation,
-      intent: senseBlock.intent,
-      tone: senseBlock.tone,
-      sense: senseBlock.sense,
-      usageNote: senseBlock.usageNote,
       confidenceScore: 1.0,
     }))
 
     setShowContextEditor(true)
     setTranscriptError(null)
 
-    // 2. Try async EN→RU translation via DeepSeek (with local fallback)
+    // 2. Try async sense-block via DeepSeek (with local fallback)
+    const { senseBlock } = await fetchSenseBlock(
+      entry.text,
+      '',
+      window.previousLines,
+      window.nextLines,
+      window.targetEntry,
+      controller.signal,
+    )
+    if (controller.signal.aborted) return
+
+    // 3. Apply sense-block to draft (stale-response guard via english field check)
+    setDraft((current) => {
+      if (current.english !== clickedPhrase) return current
+      return {
+        ...current,
+        situation: senseBlock.situation,
+        intent: senseBlock.intent,
+        tone: senseBlock.tone,
+        sense: senseBlock.sense,
+        usageNote: senseBlock.usageNote,
+      }
+    })
+
+    // 4. Try async EN→RU translation via DeepSeek (with local fallback)
     const translationResult = await translateText(entry.text, 'en', 'ru', controller.signal)
+
     if (controller.signal.aborted) return
 
     // 3. Ref-based stale-response guard (not reliant on React updater sync execution)

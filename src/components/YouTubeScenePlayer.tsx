@@ -202,13 +202,13 @@ export default function YouTubeScenePlayer({
         videoId,
         startSeconds: playFromSeconds,
       })
-      setIsPlaying(true)
-      setPlayerError(null)
+      queueMicrotask(() => setIsPlaying(true))
+      queueMicrotask(() => setPlayerError(null))
       queueMicrotask(() => startTimeCheck())
     } catch {
       // ignore
     }
-  }, [playFromSeconds, playerReady, sceneEndSeconds, startTimeCheck, videoId])
+  }, [playFromSeconds, playerReady, sceneEndSeconds, setIsPlaying, startTimeCheck, videoId])
 
   // === API-режим: Play Scene ===
   function playApiScene() {
