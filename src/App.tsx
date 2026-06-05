@@ -9,14 +9,17 @@ import {
   extractContextWindow,
   extractYoutubeId,
   findPhraseInTranscript,
-  formatTime,
   generateSenseBlock,
   parseTranscriptJson,
 } from './lib/transcript'
 import { translateText, dictionaryLookup } from './lib/translation/translationService'
 import type { DictionaryLookupResult } from './lib/translation/types'
 import { fetchSenseBlock } from './lib/senseBlockService'
-import YouTubeScenePlayer from './components/YouTubeScenePlayer'
+import HeroSummary from './components/HeroSummary'
+import QuizPanel from './components/QuizPanel'
+import CardEditorPanel from './components/CardEditorPanel'
+import CardPreviewPanel from './components/CardPreviewPanel'
+import CardCollectionPanel from './components/CardCollectionPanel'
 import type { Card, CardDraft, MatchCandidate, TranscriptEntry } from './types'
 import { YoutubeTranscript } from 'youtube-transcript'
 
@@ -922,7 +925,7 @@ function App() {
   }
 
   const canStartQuiz = cards.length >= 2
-  const hasContextScene = selectedCard?.youtubeUrl && selectedCard.sceneStartSeconds != null
+  const hasContextScene = Boolean(selectedCard?.youtubeUrl && selectedCard.sceneStartSeconds != null)
 
   const previewSceneStartSeconds = Math.max(0, draft.sceneStartSeconds ?? draft.phraseStartSeconds ?? 0)
   const previewSceneEndSeconds = Math.max(
@@ -961,802 +964,88 @@ function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <div className="hero-top">
-            <p className="eyebrow">QuizLight</p>
-            <button
-              type="button"
-              className="theme-toggle"
-              onClick={toggleTheme}
-              aria-label={theme === 'light' ? 'Переключить на тёмную тему' : 'Переключить на светлую тему'}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
-          </div>
-          <h1>Карточки для быстрого словаря</h1>
-          <p className="hero-text">
-            Первый MVP только про одно: добавить карточку, увидеть русский и
-            английский вариант, а потом спокойно отредактировать запись.
-          </p>
-        </div>
-        <div className="hero-stats" aria-label="Сводка по карточкам">
-          <article>
-            <span>Карточек</span>
-            <strong>{cards.length}</strong>
-          </article>
-          <article>
-            <span>Режим</span>
-            <strong>Веб MVP</strong>
-          </article>
-          <article>
-            <span>Хранение</span>
-            <strong>Локально</strong>
-          </article>
-        </div>
-      </section>
+      <HeroSummary
+        cardsCount={cards.length}
+        onToggleTheme={toggleTheme}
+        theme={theme}
+      />
 
       {quizActive && quiz ? (
-        <section className="quiz-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="panel-kicker">Тест</p>
-              <h2>Выберите правильный перевод</h2>
-            </div>
-            <div className="quiz-score">
-              <span>Счёт: {quizScore.correct}/{quizScore.total}</span>
-            </div>
-          </div>
-
-          <div className="quiz-question">
-            <span className="quiz-question-label">Русский</span>
-            <p className="quiz-question-text">{quiz.questionCard.russian}</p>
-            {quiz.questionCard.imageUrl ? (
-              <img
-                className="quiz-question-image"
-                src={quiz.questionCard.imageUrl}
-                alt=""
-              />
-            ) : null}
-          </div>
-
-          <div className="quiz-options">
-            {quiz.options.map((option) => {
-              let optionClass = 'quiz-option'
-              if (quiz.answered) {
-                if (option === quiz.questionCard.english) {
-                  optionClass += ' is-correct'
-                } else if (option === quiz.selectedAnswer) {
-                  optionClass += ' is-wrong'
-                }
-              }
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  className={optionClass}
-                  onClick={() => handleQuizAnswer(option)}
-                  disabled={quiz.answered}
-                >
-                  {option}
-                </button>
-              )
-            })}
-          </div>
-
-          {quiz.answered ? (
-            <div className="quiz-feedback">
-              {quiz.selectedAnswer === quiz.questionCard.english ? (
-                <p className="quiz-feedback-correct">✅ Верно!</p>
-              ) : (
-                <p className="quiz-feedback-wrong">
-                  ❌ Неверно. Правильный ответ: <strong>{quiz.questionCard.english}</strong>
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          <div className="quiz-actions">
-            {quiz.answered ? (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={nextQuestion}
-              >
-                Следующий вопрос →
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={stopQuiz}
-            >
-              Завершить тест
-            </button>
-          </div>
-        </section>
+        <QuizPanel
+          quiz={quiz}
+          quizScore={quizScore}
+          onAnswer={handleQuizAnswer}
+          onNextQuestion={nextQuestion}
+          onStop={stopQuiz}
+        />
       ) : (
         <>
           <section className="workspace">
-            <form className="editor-panel" onSubmit={handleSubmit}>
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">Редактор</p>
-                  <h2>{isEditing ? 'Редактирование карточки' : 'Новая карточка'}</h2>
-                </div>
-                {isEditing ? (
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={resetForm}
-                  >
-                    Отменить
-                  </button>
-                ) : null}
-              </div>
+            <CardEditorPanel
+              activeSuggestions={activeSuggestions}
+              activeTranscriptIndex={activeTranscriptIndex}
+              draft={draft}
+              englishFieldId={englishFieldId}
+              imageFieldId={imageFieldId}
+              isEditing={isEditing}
+              isLoadingTranscript={isLoadingTranscript}
+              isTranslating={isTranslating}
+              loadTranscriptFromYouTubeUrl={loadTranscriptFromYouTubeUrl}
+              matchCandidates={matchCandidates}
+              onFindPhrase={handleFindPhrase}
+              onImageSearch={openGoogleImageSearch}
+              onPreviewTimeChange={setPlayerCurrentTime}
+              onResetForm={resetForm}
+              onSelectMatchCandidate={selectMatchCandidate}
+              onSubmit={handleSubmit}
+              playFromTranscriptSeconds={playFromTranscriptSeconds}
+              onTranslateEnToRu={handleTranslateEnToRu}
+              onTranslateRuToEn={handleTranslateRuToEn}
+              onTranscriptLineClick={handleTranscriptLineClick}
+              parsedTranscript={parsedTranscript}
+              previewPhraseEndSeconds={previewPhraseEndSeconds}
+              previewPhraseStartSeconds={previewPhraseStartSeconds}
+              previewSceneEndSeconds={previewSceneEndSeconds}
+              previewSceneStartSeconds={previewSceneStartSeconds}
+              russianFieldId={russianFieldId}
+              selectedMatchIndex={selectedMatchIndex}
+              showContextEditor={showContextEditor}
+              transcriptEntryRefs={transcriptEntryRefs}
+              transcriptError={transcriptError}
+              translationFallbackNote={translationFallbackNote}
+              translationProvider={translationProvider}
+              updateDraft={updateDraft}
+              youtubeFieldId={youtubeFieldId}
+            />
 
-              <label className="field" htmlFor={russianFieldId}>
-                <span>Русский вариант</span>
-                <textarea
-                  id={russianFieldId}
-                  value={draft.russian}
-                  onChange={(event) => updateDraft('russian', event.target.value)}
-                  placeholder="Например: Доброе утро"
-                  rows={3}
-                />
-                <div className="translate-button-row">
-                  <button
-                    type="button"
-                    className="translate-button"
-                    onClick={handleTranslateRuToEn}
-                    disabled={!draft.russian.trim() || isTranslating === 'ru-to-en'}
-                  >
-                    {isTranslating === 'ru-to-en' ? '⏳ Перевод...' : '🌐 Перевести на английский'}
-                  </button>
-                  {translationProvider && !isTranslating ? (
-                    <span className="provider-label">
-                      {translationProvider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
-                    </span>
-                  ) : null}
-                  {translationFallbackNote ? (
-                    <span className="fallback-note">{translationFallbackNote}</span>
-                  ) : null}
-                </div>
-              </label>
-
-              {activeSuggestions ? (
-                <div className="suggestions-block">
-                  <span className="suggestions-label">{activeSuggestions.label}</span>
-                  <span className="provider-label">Локальная подсказка</span>
-                  <div className="suggestions-list">
-                    {activeSuggestions.items.map((suggestion) => {
-                      const isActive = activeSuggestions.activeValue === suggestion
-
-                      return (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          className={`suggestion-chip${isActive ? ' is-active' : ''}`}
-                          onClick={() => activeSuggestions.apply(suggestion)}
-                        >
-                          {suggestion}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <label className="field" htmlFor={englishFieldId}>
-                <span>Английский вариант</span>
-                <textarea
-                  id={englishFieldId}
-                  value={draft.english}
-                  onChange={(event) => updateDraft('english', event.target.value)}
-                  placeholder="For example: Good morning"
-                  rows={3}
-                />
-                <div className="translate-button-row">
-                  <button
-                    type="button"
-                    className="translate-button"
-                    onClick={handleTranslateEnToRu}
-                    disabled={!draft.english.trim() || isTranslating === 'en-to-ru'}
-                  >
-                    {isTranslating === 'en-to-ru' ? '⏳ Перевод...' : '🌐 Перевести на русский'}
-                  </button>
-                  {translationProvider && !isTranslating ? (
-                    <span className="provider-label">
-                      {translationProvider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
-                    </span>
-                  ) : null}
-                  {translationFallbackNote ? (
-                    <span className="fallback-note">{translationFallbackNote}</span>
-                  ) : null}
-                </div>
-              </label>
-
-              <label className="field" htmlFor={imageFieldId}>
-                <span>Изображение (URL)</span>
-                <div className="image-search-row">
-                  <input
-                    id={imageFieldId}
-                    type="url"
-                    className="field-input"
-                    value={draft.imageUrl ?? ''}
-                    onChange={(event) => updateDraft('imageUrl', event.target.value)}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  <div className="image-search-buttons">
-                    <button
-                      type="button"
-                      className="image-search-button"
-                      onClick={() => openGoogleImageSearch(draft.russian)}
-                      disabled={!draft.russian.trim()}
-                      title="Искать на Google Картинках (русский)"
-                    >
-                      🇷🇺 🔍
-                    </button>
-                    <button
-                      type="button"
-                      className="image-search-button"
-                      onClick={() => openGoogleImageSearch(draft.english)}
-                      disabled={!draft.english.trim()}
-                      title="Search Google Images (English)"
-                    >
-                      🇬🇧 🔍
-                    </button>
-                  </div>
-                </div>
-              </label>
-
-              {/* Context Scene Card section */}
-              <details className="context-scene-section">
-                <summary className="context-scene-summary">
-                  🎬 Контекстная сцена (YouTube + транскрипт)
-                </summary>
-
-                <label className="field" htmlFor={youtubeFieldId}>
-                  <span>YouTube URL</span>
-                  <div className="youtube-url-row">
-                    <input
-                      id={youtubeFieldId}
-                      type="url"
-                      className="field-input"
-                      value={draft.youtubeUrl ?? ''}
-                      onChange={(event) => updateDraft('youtubeUrl', event.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                    <button
-                      type="button"
-                      className="ghost-button youtube-load-button"
-                      onClick={loadTranscriptFromYouTubeUrl}
-                      disabled={!draft.youtubeUrl?.trim() || isLoadingTranscript}
-                    >
-                      {isLoadingTranscript ? 'Загрузка...' : 'Загрузить транскрипт'}
-                    </button>
-                  </div>
-                </label>
-
-                {draft.youtubeUrl?.trim() ? (
-                  <div className="context-scene-preview">
-                    <div className="context-scene-preview-header">
-                      <span className="context-scene-preview-label">Превью сцены</span>
-                      <span className="context-scene-preview-tag">YouTube</span>
-                    </div>
-                    <YouTubeScenePlayer
-                      youtubeUrl={draft.youtubeUrl}
-                      sceneStartSeconds={previewSceneStartSeconds}
-                      sceneEndSeconds={previewSceneEndSeconds}
-                      phraseStartSeconds={previewPhraseStartSeconds}
-                      phraseEndSeconds={previewPhraseEndSeconds}
-                      onTimeChange={setPlayerCurrentTime}
-                      playFromSeconds={playFromTranscriptSeconds}
-                    />
-                  </div>
-                ) : null}
-
-                {/* Clickable transcript list */}
-                {parsedTranscript && parsedTranscript.length > 0 ? (
-                  <div className="transcript-clickable-list">
-                    <span className="transcript-clickable-label">
-                      👆 Нажмите на фразу, чтобы вставить в карточку:
-                    </span>
-                    <div className="transcript-clickable-entries">
-                      {parsedTranscript.map((entry, i) => {
-                        const isSelected = draft.phraseStartSeconds === entry.start
-                        const isActive = i === activeTranscriptIndex
-                        return (
-                          <button
-                            key={i}
-                            ref={(node) => {
-                              transcriptEntryRefs.current[i] = node
-                            }}
-                            type="button"
-                            className={`transcript-clickable-entry${isSelected ? ' is-selected' : ''}${isActive ? ' is-active' : ''}`}
-                            onClick={() => handleTranscriptLineClick(entry, i, parsedTranscript)}
-                          >
-                            <span className="transcript-entry-time">
-                              {formatTime(entry.start)}
-                            </span>
-                            <span className="transcript-entry-text">
-                              {entry.text}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleFindPhrase}
-                  disabled={!draft.english.trim() || (!draft.transcriptJson?.trim() && !draft.youtubeUrl?.trim())}
-                >
-                  🔍 Найти фразу в транскрипте
-                </button>
-
-                {transcriptError ? (
-                  <div className="transcript-error">
-                    ⚠️ {transcriptError}
-                  </div>
-                ) : null}
-
-                {matchCandidates.length > 1 ? (
-                  <div className="match-candidates">
-                    <span className="match-candidates-label">
-                      Найдено {matchCandidates.length} совпадений. Выберите:
-                    </span>
-                    <div className="match-candidates-list">
-                      {matchCandidates.map((candidate, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          className={`match-candidate-chip${selectedMatchIndex === i ? ' is-selected' : ''}`}
-                          onClick={() => selectMatchCandidate(i)}
-                        >
-                          #{i + 1} ({Math.round(candidate.confidence * 100)}%){' '}
-                          {candidate.entry.text.slice(0, 40)}
-                          {candidate.entry.text.length > 40 ? '...' : ''}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {showContextEditor ? (
-                  <div className="context-editor">
-                    <label className="field">
-                      <span>Scene Start (сек)</span>
-                      <input
-                        type="number"
-                        className="field-input"
-                        value={draft.sceneStartSeconds ?? ''}
-                        onChange={(e) =>
-                          updateDraft('sceneStartSeconds', Number(e.target.value))
-                        }
-                        step={0.1}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Scene End (сек)</span>
-                      <input
-                        type="number"
-                        className="field-input"
-                        value={draft.sceneEndSeconds ?? ''}
-                        onChange={(e) =>
-                          updateDraft('sceneEndSeconds', Number(e.target.value))
-                        }
-                        step={0.1}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Previous Lines</span>
-                      <textarea
-                        className="field-textarea-code"
-                        value={draft.previousLines ?? ''}
-                        onChange={(e) => updateDraft('previousLines', e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Target Line</span>
-                      <textarea
-                        className="field-textarea-code"
-                        value={draft.targetLine ?? ''}
-                        onChange={(e) => updateDraft('targetLine', e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Next Lines</span>
-                      <textarea
-                        className="field-textarea-code"
-                        value={draft.nextLines ?? ''}
-                        onChange={(e) => updateDraft('nextLines', e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Situation</span>
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={draft.situation ?? ''}
-                        onChange={(e) => updateDraft('situation', e.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Intent</span>
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={draft.intent ?? ''}
-                        onChange={(e) => updateDraft('intent', e.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Tone</span>
-                      <input
-                        type="text"
-                        className="field-input"
-                        value={draft.tone ?? ''}
-                        onChange={(e) => updateDraft('tone', e.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Sense</span>
-                      <textarea
-                        className="field-textarea-code"
-                        value={draft.sense ?? ''}
-                        onChange={(e) => updateDraft('sense', e.target.value)}
-                        rows={3}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Usage Note</span>
-                      <textarea
-                        className="field-textarea-code"
-                        value={draft.usageNote ?? ''}
-                        onChange={(e) => updateDraft('usageNote', e.target.value)}
-                        rows={2}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-              </details>
-
-              <button type="submit" className="primary-button">
-                {isEditing ? 'Сохранить изменения' : 'Добавить карточку'}
-              </button>
-            </form>
-
-            <section className="preview-panel">
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">Просмотр</p>
-                  <h2>Текущая карточка</h2>
-                </div>
-                <div className="panel-heading-actions">
-                  <button
-                    type="button"
-                    className="panel-settings-button"
-                    aria-label="Настройка карточки"
-                    title="Настройка карточки"
-                  >
-                    ⚙️
-                  </button>
-                </div>
-              </div>
-
-              <label className="preview-setting-row">
-                <input
-                  type="checkbox"
-                  checked={autoPlayAudio}
-                  onChange={(event) => setAutoPlayAudio(event.target.checked)}
-                />
-                <span>Автопроигрывание звука при клике на карточку</span>
-              </label>
-
-              {selectedCard ? (
-                <article
-                  className={`focus-card${isFlipped ? ' is-flipped' : ''}`}
-                  onClick={toggleCardSide}
-                >
-                  <div className="focus-card-face focus-card-front">
-                    <div className="focus-card-head">
-                      <span>Русский</span>
-                      <button
-                        type="button"
-                        className={`audio-button${speakingKey === `${selectedCard.id}:russian` ? ' is-speaking' : ''}`}
-                        onClick={(event) =>
-                          speakText(event, selectedCard.russian, 'ru-RU', 'russian')
-                        }
-                        aria-label="Озвучить русский вариант"
-                      >
-                        🔊
-                      </button>
-                    </div>
-                    <p>{selectedCard.russian}</p>
-                    {selectedCard.imageUrl ? (
-                      <img
-                        className="focus-card-image"
-                        src={selectedCard.imageUrl}
-                        alt=""
-                      />
-                    ) : null}
-                  </div>
-                  <div className="focus-card-face focus-card-back">
-                    <div className="focus-card-head">
-                      <span>English</span>
-                      <button
-                        type="button"
-                        className={`audio-button${speakingKey === `${selectedCard.id}:english` ? ' is-speaking' : ''}`}
-                        onClick={(event) =>
-                          speakText(event, selectedCard.english, 'en-US', 'english')
-                        }
-                        aria-label="Read the English side aloud"
-                      >
-                        🔊
-                      </button>
-                    </div>
-                    <p>{selectedCard.english}</p>
-                    {selectedCard.imageUrl ? (
-                      <img
-                        className="focus-card-image"
-                        src={selectedCard.imageUrl}
-                        alt=""
-                      />
-                    ) : null}
-                  </div>
-                </article>
-              ) : (
-                <div className="empty-state">
-                  <p>Добавьте первую карточку, и она появится здесь.</p>
-                </div>
-              )}
-
-              {/* Context Scene display on selected card */}
-              {hasContextScene && selectedCard ? (
-                <div className="context-scene-display">
-                  <h3 className="context-scene-display-title">🎬 Контекстная сцена</h3>
-
-                  <YouTubeScenePlayer
-                    youtubeUrl={selectedCard.youtubeUrl!}
-                    sceneStartSeconds={selectedCard.sceneStartSeconds!}
-                    sceneEndSeconds={selectedCard.sceneEndSeconds!}
-                    phraseStartSeconds={selectedCard.phraseStartSeconds!}
-                    phraseEndSeconds={selectedCard.phraseEndSeconds!}
-                  />
-
-                  {/* Transcript lines */}
-                  <div className="context-transcript">
-                    {selectedCard.previousLines ? (
-                      <div className="context-transcript-line previous">
-                        {selectedCard.previousLines.split('\n').map((line, i) => (
-                          <span key={i}>{line}</span>
-                        ))}
-                      </div>
-                    ) : null}
-                    {selectedCard.targetLine ? (
-                      <div className="context-transcript-line target">
-                        <strong>→ {selectedCard.targetLine}</strong>
-                      </div>
-                    ) : null}
-                    {selectedCard.nextLines ? (
-                      <div className="context-transcript-line next">
-                        {selectedCard.nextLines.split('\n').map((line, i) => (
-                          <span key={i}>{line}</span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Sense block */}
-                  <div className="context-sense-block">
-                    {selectedCard.situation ? (
-                      <div className="sense-row">
-                        <span className="sense-label">Situation:</span>
-                        <span>{selectedCard.situation}</span>
-                      </div>
-                    ) : null}
-                    {selectedCard.intent ? (
-                      <div className="sense-row">
-                        <span className="sense-label">Intent:</span>
-                        <span>{selectedCard.intent}</span>
-                      </div>
-                    ) : null}
-                    {selectedCard.tone ? (
-                      <div className="sense-row">
-                        <span className="sense-label">Tone:</span>
-                        <span>{selectedCard.tone}</span>
-                      </div>
-                    ) : null}
-                    {selectedCard.sense ? (
-                      <div className="sense-row">
-                        <span className="sense-label">Sense:</span>
-                        <span>{selectedCard.sense}</span>
-                      </div>
-                    ) : null}
-                    {selectedCard.usageNote ? (
-                      <div className="sense-row">
-                        <span className="sense-label">Usage:</span>
-                        <span>{selectedCard.usageNote}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Dictionary Lookup section */}
-              <details className="dictionary-section">
-                <summary className="dictionary-summary">
-                  📖 Словарь (Dictionary Lookup)
-                </summary>
-                <div className="dictionary-input-row">
-                  <input
-                    type="text"
-                    className="field-input"
-                    value={dictionaryWord}
-                    onChange={(e) => setDictionaryWord(e.target.value)}
-                    placeholder="Введите английское слово..."
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleDictionaryLookup()
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={handleDictionaryLookup}
-                    disabled={!dictionaryWord.trim() || isDictionaryLoading}
-                  >
-                    {isDictionaryLoading ? '⏳ Поиск...' : '🔍 Найти'}
-                  </button>
-                </div>
-
-                {dictionaryError ? (
-                  <div className="dictionary-error">
-                    ⚠️ {dictionaryError}
-                  </div>
-                ) : null}
-
-                {dictionaryResult ? (
-                  <div className="dictionary-results">
-                    <div className="dictionary-word">
-                      <strong>{dictionaryResult.displaySource}</strong>
-                      <span className="dictionary-normalized">
-                        ({dictionaryResult.normalizedSource})
-                      </span>
-                      <span className="provider-label">
-                        {dictionaryResult.provider === 'deepseek' ? 'DeepSeek' : 'Локальная подсказка'}
-                      </span>
-                    </div>
-                    <div className="dictionary-translations">
-                      {dictionaryResult.translations.map((t, i) => (
-                        <div key={i} className="dictionary-translation-row">
-                          <span className="dictionary-pos-tag">{t.posTag}</span>
-                          <button
-                            type="button"
-                            className="dictionary-target-word-button"
-                            onClick={() => setDictionaryWord(t.displayTarget)}
-                            title="Нажмите, чтобы искать это слово"
-                          >
-                            {t.displayTarget}
-                          </button>
-                          <button
-                            type="button"
-                            className="dictionary-apply-button"
-                            onClick={() => updateDraft('russian', t.displayTarget)}
-                            title="Использовать этот перевод в карточке"
-                          >
-                            📝
-                          </button>
-                          <span className="dictionary-confidence">
-                            {Math.round(t.confidence * 100)}%
-                          </span>
-                          {t.backTranslations && t.backTranslations.length > 0 ? (
-                            <div className="dictionary-back-translations">
-                              {t.backTranslations.slice(0, 3).map((bt, j) => (
-                                <button
-                                  key={j}
-                                  type="button"
-                                  className="dictionary-back-translation-button"
-                                  onClick={() => setDictionaryWord(bt.displayText)}
-                                  title="Нажмите, чтобы искать это слово"
-                                >
-                                  {bt.displayText}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </details>
-            </section>
+            <CardPreviewPanel
+              autoPlayAudio={autoPlayAudio}
+              dictionaryError={dictionaryError}
+              dictionaryResult={dictionaryResult}
+              dictionaryWord={dictionaryWord}
+              hasContextScene={hasContextScene}
+              isDictionaryLoading={isDictionaryLoading}
+              isFlipped={isFlipped}
+              onAutoPlayChange={setAutoPlayAudio}
+              onDictionaryLookup={handleDictionaryLookup}
+              onDictionaryWordChange={setDictionaryWord}
+              onSpeakText={speakText}
+              onToggleCardSide={toggleCardSide}
+              selectedCard={selectedCard}
+              speakingKey={speakingKey}
+              updateDraft={(field, value) => updateDraft(field, value)}
+            />
           </section>
 
-          <section className="collection-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="panel-kicker">Коллекция</p>
-                <h2>Все карточки</h2>
-              </div>
-              <button
-                type="button"
-                className="primary-button quiz-start-button"
-                onClick={startQuiz}
-                disabled={!canStartQuiz}
-                title={!canStartQuiz ? 'Нужно минимум 2 карточки для теста' : 'Начать тест'}
-              >
-                🧠 Начать тест
-              </button>
-            </div>
-
-            {cards.length > 0 ? (
-              <div className="cards-grid">
-                {cards.map((card) => {
-                  const isSelected = card.id === selectedCard?.id
-
-                  return (
-                    <article
-                      key={card.id}
-                      className={`mini-card${isSelected ? ' is-selected' : ''}`}
-                      onClick={() => selectCard(card.id)}
-                    >
-                      <div className="mini-card-copy">
-                        {card.imageUrl ? (
-                          <img
-                            className="mini-card-image"
-                            src={card.imageUrl}
-                            alt=""
-                          />
-                        ) : null}
-                        <h3>{card.russian}</h3>
-                        <p>{card.english}</p>
-                        {card.youtubeUrl ? (
-                          <span className="mini-card-context-badge">🎬</span>
-                        ) : null}
-                      </div>
-                      <div className="mini-card-actions">
-                        <button
-                          type="button"
-                          className="ghost-button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            startEditing(card)
-                          }}
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            removeCard(card.id)
-                          }}
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="empty-state collection-empty">
-                <p>Карточек пока нет. Создайте первую!</p>
-              </div>
-            )}
-          </section>
+          <CardCollectionPanel
+            canStartQuiz={canStartQuiz}
+            cards={cards}
+            onEdit={startEditing}
+            onRemove={removeCard}
+            onSelect={selectCard}
+            onStartQuiz={startQuiz}
+            selectedCardId={selectedCard?.id ?? null}
+          />
         </>
       )}
     </main>
