@@ -36,22 +36,17 @@ The executor role is model-neutral. A future executor may be Codex, DeepSeek, Cl
 
 ## Current Task
 
-Dashboard v1 implemented — AppShell sidebar navigation, DashboardHome, workspace tab separation. Ready for next agent handoff.
+Dashboard v1 implemented — AppShell sidebar navigation, DashboardHome, workspace tab separation, card click fix. Pushed to master at commit `c85c5f4`.
 
 ## Current Repository State
 
 Accepted implementation baseline for the active workstream:
 
-`f96bcbb4d223da8bc6f95317205c62e3f34dad29` — accepted post-PR #7 base named by ChatGPT in Issue #8 activation
-
-Current working tree status:
-
-`IN_PROGRESS` — Dashboard v1 implemented (Issue #10), workspace tabs separated, build passes with 0 errors
+`c85c5f4` — Dashboard v1: AppShell sidebar navigation, DashboardHome, workspace tab separation, card click fix
 
 Current coordination status:
 
-`READY_FOR_HANDOFF — Project ready for next agent. Changes not yet pushed.`
-
+`READY_FOR_HANDOFF — Project ready for next agent. Changes pushed to origin/master.`
 
 ## Accepted Decisions Carried Forward
 
@@ -68,18 +63,20 @@ Current coordination status:
 - AppShell sidebar navigation with 5 nav items (Главная, Библиотека, Все карточки, Наборы, Материалы)
 - DashboardHome with header, continue-learning block (3 states), quick actions, statistics, recent cards, recent materials
 - Workspace tab separation (editor, preview, collection) — each panel in its own tab
+- Card click fix — clicking a card in DashboardHome opens preview tab
 - Theme toggle (light/dark) in sidebar, persisted to localStorage
 - Responsive layout: desktop sidebar (240px), tablet collapse at ≤900px, mobile hamburger menu at ≤640px
 - All existing workspace functionality preserved (card CRUD, YouTube transcript, scene playback, quiz, dictionary, text reader, project creation)
 
 ## Implementation Summary
 
-Dashboard v1 implemented in the current working tree:
+Dashboard v1 implemented and pushed to origin/master:
 
 1. ✅ AppShell.tsx — persistent left sidebar with navigation and theme toggle
 2. ✅ DashboardHome.tsx — home screen with derived data (continue block, stats, recent cards/materials)
 3. ✅ Workspace tab separation — editor, preview, collection tabs
-4. ✅ Build fixes — unused imports/variables removed, 0 errors
+4. ✅ Card click fix — quizlight:select-card CustomEvent handler
+5. ✅ Build fixes — unused imports/variables removed, 0 errors
 
 ### Validation
 
@@ -88,7 +85,8 @@ Dashboard v1 implemented in the current working tree:
 
 ## Open Review Items
 
-- No blocking review items. Changes not yet pushed to origin/master.
+- No blocking review items. Patch Execution Report posted in Issue #10.
+- Awaiting review by ChatGPT.
 
 ## API Model Runtime Check
 
@@ -139,8 +137,7 @@ The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Push the current working tree to origin/master, post a Patch Execution Report in Issue #10, and hand off to the next agent for review or continuation.
-
+Awaiting review by ChatGPT. Handoff to next agent for continuation or review.
 
 ## Update Rule
 
