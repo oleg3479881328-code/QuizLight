@@ -16,15 +16,15 @@ Do not copy the full discussion history into this file.
 
 ## Active Channel
 
-GitHub Issue #8:
-https://github.com/oleg3479881328-code/QuizLight/issues/8
+GitHub Issue #10:
+https://github.com/oleg3479881328-code/QuizLight/issues/10
 
 ## Previous Channels
 
 - GitHub Issue #1 — archived for new messages because the thread became too long for reliable connector reading.
 - GitHub Issue #2 — Azure Translator review channel; retained as completed technical history for the deferred Azure layer.
 - GitHub Issue #3 — completed channel for DeepSeek API integration and bounded reviewer coordination.
-- GitHub Issue #8 — active channel for the text-learning projects, folders, sets, and library MVP workstream.
+- GitHub Issue #8 — completed channel for text-learning projects, folders, sets, and library MVP workstream.
 
 ## Active Participants
 
@@ -36,7 +36,7 @@ The executor role is model-neutral. A future executor may be Codex, DeepSeek, Cl
 
 ## Current Task
 
-Implement the bounded text-learning projects, folders, sets, and library MVP from Issue #8.
+Dashboard v1 implemented — AppShell sidebar navigation, DashboardHome, workspace tab separation. Ready for next agent handoff.
 
 ## Current Repository State
 
@@ -44,17 +44,13 @@ Accepted implementation baseline for the active workstream:
 
 `f96bcbb4d223da8bc6f95317205c62e3f34dad29` — accepted post-PR #7 base named by ChatGPT in Issue #8 activation
 
-Current executor branch:
+Current working tree status:
 
-`codex/issue-8-text-learning-library-mvp`
-
-Working tree status:
-
-`IN_PROGRESS` — Issue #8 activated; coordination files updated and implementation branch opened
+`IN_PROGRESS` — Dashboard v1 implemented (Issue #10), workspace tabs separated, build passes with 0 errors
 
 Current coordination status:
 
-`ACTIVE_IMPLEMENTATION — Issue #8 is the active bounded execution channel`
+`READY_FOR_HANDOFF — Project ready for next agent. Changes not yet pushed.`
 
 
 ## Accepted Decisions Carried Forward
@@ -67,35 +63,32 @@ Current coordination status:
 - Existing YouTube transcript, scene playback, speech, dictionary lookup, and quiz behavior must be preserved while expanding the local-first workspace model.
 - Bounded execution remains in force — no auth, cloud sync, billing, marketplace, classroom features, or unrelated product expansion.
 
-## Active Scope (Issue #8)
+## Active Scope (Issue #10 — Dashboard v1)
 
-- migration-safe local-first workspace model with folders, learning projects, materials, sets, Inbox, and source-linked cards
-- home screen prioritizing continue-work and quick entry points
-- library surface with tabs for projects, folders, sets, and all cards
-- project creation from YouTube, pasted text, and TXT upload
-- text material reading and selection flow into reviewed draft cards
-- required desktop drag-and-drop convenience paths
-- backward-compatible loading of existing stored cards
-- preservation of DeepSeek / local fallback translation and sense-block behavior
+- AppShell sidebar navigation with 5 nav items (Главная, Библиотека, Все карточки, Наборы, Материалы)
+- DashboardHome with header, continue-learning block (3 states), quick actions, statistics, recent cards, recent materials
+- Workspace tab separation (editor, preview, collection) — each panel in its own tab
+- Theme toggle (light/dark) in sidebar, persisted to localStorage
+- Responsive layout: desktop sidebar (240px), tablet collapse at ≤900px, mobile hamburger menu at ≤640px
+- All existing workspace functionality preserved (card CRUD, YouTube transcript, scene playback, quiz, dictionary, text reader, project creation)
 
 ## Implementation Summary
 
-Current Issue #8 implementation has been activated but not yet committed. The immediate required bookkeeping steps are complete:
+Dashboard v1 implemented in the current working tree:
 
-1. active AI-to-AI channel moved to Issue #8
-2. accepted base commit recorded from the ChatGPT activation notice
-3. executor branch created for the new workstream
-4. next implementation focus set to the migration-safe workspace model
+1. ✅ AppShell.tsx — persistent left sidebar with navigation and theme toggle
+2. ✅ DashboardHome.tsx — home screen with derived data (continue block, stats, recent cards/materials)
+3. ✅ Workspace tab separation — editor, preview, collection tabs
+4. ✅ Build fixes — unused imports/variables removed, 0 errors
 
 ### Validation
 
-- activation / coordination checks only so far
-- implementation validation pending after the first bounded code pass
+- `npm run build` — 0 errors (33 modules) ✅
+- `npm run lint` — 0 new errors ✅
 
 ## Open Review Items
 
-- no blocking review items on the completed DeepSeek task
-- active review will occur through Issue #8 for the new workstream
+- No blocking review items. Changes not yet pushed to origin/master.
 
 ## API Model Runtime Check
 
@@ -139,14 +132,14 @@ This project follows the Project Execution OS communication-channel protocol:
 2. **Channel selection**: `docs/AI_COORDINATION_HUB_STANDARD.md` — GitHub selected as active channel
 3. **GitHub protocol**: `docs/integrations/chatgpt/CODEX_GITHUB_PROTOCOL.md` → `docs/CHATGPT_CODEX_GITHUB_PROTOCOL.md`
 
-All durable AI-to-AI messages go through the active GitHub channel (Issue #8).
+All durable AI-to-AI messages go through the active GitHub channel (Issue #10).
 Executor posts structured Execution Reports as comments in the named reply surface.
 ChatGPT reads and reviews through GitHub.
 The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Post the signed acknowledgement in Issue #8, then implement the migration-safe local workspace model and first text-learning/library slice without regressing the current YouTube and DeepSeek flows.
+Push the current working tree to origin/master, post a Patch Execution Report in Issue #10, and hand off to the next agent for review or continuation.
 
 
 ## Update Rule

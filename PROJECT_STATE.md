@@ -1,9 +1,10 @@
 # Project State
 
 - Project: `QuizLight`
-- State date: `2026-06-03`
-- Last update: `2026-06-03` (добавлен второй блок project-specific опыта: text learning, decks/chains, free core + paid AI, dollar pay-as-you-go, privacy storage, teacher referrals, multilingual UI)
+- State date: `2026-06-06`
+- Last update: `2026-06-06` (Dashboard v1 implemented: AppShell sidebar navigation, DashboardHome as default view, light/dark theme toggle in sidebar, responsive layout)
 - Last update: `2026-06-05` (design architecture document refreshed in PR #5 to match the actual current QuizLight surface: manual cards + YouTube transcript/context + scene playback + DeepSeek-backed assists)
+- Last update: `2026-06-03` (добавлен второй блок project-specific опыта: text learning, decks/chains, free core + paid AI, dollar pay-as-you-go, privacy storage, teacher referrals, multilingual UI)
 - State type: transfer-ready
 - Lifecycle position:
   - bootstrap completed

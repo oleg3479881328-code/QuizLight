@@ -15,13 +15,14 @@ import {
 import { translateText, dictionaryLookup } from './lib/translation/translationService'
 import type { DictionaryLookupResult } from './lib/translation/types'
 import { fetchSenseBlock } from './lib/senseBlockService'
-import HeroSummary from './components/HeroSummary'
 import QuizPanel from './components/QuizPanel'
 import CardEditorPanel from './components/CardEditorPanel'
 import CardPreviewPanel from './components/CardPreviewPanel'
 import CardCollectionPanel from './components/CardCollectionPanel'
 import TextMaterialReaderPanel from './components/TextMaterialReaderPanel'
 import ProjectCreationPanel from './components/ProjectCreationPanel'
+import AppShell from './components/AppShell'
+import DashboardHome from './components/DashboardHome'
 import {
   createTextPreview,
   getMaterialCover,
@@ -54,6 +55,8 @@ function getInitialTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+type NavItem = 'home' | 'library' | 'cards' | 'sets' | 'materials'
+
 const emptyDraft: CardDraft = {
   russian: '',
   english: '',
@@ -69,6 +72,7 @@ type QuizState = {
 
 type Screen = 'home' | 'library' | 'workspace' | 'project' | 'set'
 type LibraryTab = 'projects' | 'folders' | 'sets' | 'cards'
+type WorkspaceTab = 'editor' | 'preview' | 'collection'
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
@@ -131,6 +135,8 @@ function App() {
   const [quizActive, setQuizActive] = useState(false)
   const [quiz, setQuiz] = useState<QuizState | null>(null)
   const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 })
+  const [activeNav, setActiveNav] = useState<NavItem>('home')
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('editor')
 
   // Context Scene Card state
   const [transcriptError, setTranscriptError] = useState<string | null>(null)
@@ -1453,17 +1459,6 @@ function App() {
 
     return items
   }, [currentFolderId, folders])
-  const recentProjects = useMemo(
-    () =>
-      [...projects]
-        .sort((left, right) => right.lastActiveAt.localeCompare(left.lastActiveAt))
-        .slice(0, 4),
-    [projects],
-  )
-  const continueProject = useMemo(
-    () => projects.find((project) => project.id === workspace.continueState?.projectId) ?? recentProjects[0] ?? null,
-    [projects, recentProjects, workspace.continueState?.projectId],
-  )
   const currentSetViewMode = selectedSet ? getSetViewMode(workspace, selectedSet.id) : 'cards'
 
   const canStartQuiz = visibleCards.length >= 2
@@ -1504,14 +1499,44 @@ function App() {
     }
   }, [activeTranscriptIndex])
 
-  return (
-    <main className="app-shell">
-      <HeroSummary
-        cardsCount={cards.length}
-        onToggleTheme={toggleTheme}
-        theme={theme}
-      />
+  // Listen for card selection events from DashboardHome
+  useEffect(() => {
+    function onSelectCard(event: Event) {
+      const detail = (event as CustomEvent).detail as { cardId: string } | undefined
+      if (!detail?.cardId) return
+      setSelectedId(detail.cardId)
+      setWorkspaceTab('preview')
+    }
+    window.addEventListener('quizlight:select-card', onSelectCard)
+    return () => window.removeEventListener('quizlight:select-card', onSelectCard)
+  }, [])
 
+  function handleNavigate(item: NavItem) {
+    setActiveNav(item)
+    switch (item) {
+      case 'home':
+        setScreen('home')
+        break
+      case 'library':
+        setScreen('library')
+        break
+      case 'cards':
+        setScreen('library')
+        setLibraryTab('cards')
+        break
+      case 'sets':
+        setScreen('library')
+        setLibraryTab('sets')
+        break
+      case 'materials':
+        setScreen('library')
+        setLibraryTab('projects')
+        break
+    }
+  }
+
+  return (
+    <AppShell theme={theme} onToggleTheme={toggleTheme} activeNav={activeNav} onNavigate={handleNavigate}>
       <ProjectCreationPanel
         folders={folders}
         isOpen={isProjectCreationOpen}
@@ -1519,111 +1544,18 @@ function App() {
         onCreate={createProjectFromSource}
       />
 
-      <nav className="workspace-nav">
-        <button type="button" className="ghost-button" onClick={() => setScreen('home')}>
-          Домой
-        </button>
-        <button type="button" className="ghost-button" onClick={() => setScreen('library')}>
-          Библиотека
-        </button>
-        {selectedProject ? (
-          <button type="button" className="ghost-button" onClick={() => setScreen('project')}>
-            Проект
-          </button>
-        ) : null}
-        <button type="button" className="primary-button" onClick={() => setIsProjectCreationOpen(true)}>
-          + Новый проект
-        </button>
-        <button type="button" className="ghost-button" onClick={openQuickCardFlow}>
-          + Быстрая карточка
-        </button>
-      </nav>
-
       {screen === 'home' ? (
-        <section className="home-dashboard">
-          <div className="home-primary-actions">
-            <button type="button" className="primary-button" onClick={() => setIsProjectCreationOpen(true)}>
-              + Новый проект
-            </button>
-            <button type="button" className="ghost-button" onClick={openQuickCardFlow}>
-              + Быстрая карточка
-            </button>
-          </div>
-
-          {continueProject ? (
-            <article className="continue-card">
-              <div>
-                <p className="panel-kicker">Продолжить работу</p>
-                <h2>{continueProject.name}</h2>
-                <p className="panel-description">
-                  Последний активный проект с быстрым переходом к материалу и набору.
-                </p>
-              </div>
-              <div className="continue-card-meta">
-                <span>Материалов: {continueProject.materialIds.length}</span>
-                <span>Карточек: {cards.filter((card) => card.projectId === continueProject.id).length}</span>
-              </div>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => openProject(continueProject.id)}
-              >
-                Продолжить
-              </button>
-            </article>
-          ) : null}
-
-          <section className="home-secondary-grid">
-            <article className="collection-panel">
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">Недавние проекты</p>
-                  <h2>Быстрый возврат</h2>
-                </div>
-              </div>
-              <div className="home-link-list">
-                {recentProjects.length > 0 ? recentProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    type="button"
-                    className="home-link-item"
-                    onClick={() => openProject(project.id)}
-                  >
-                    <strong>{project.name}</strong>
-                    <span>{project.status === 'archived' ? 'Архив' : 'Активный проект'}</span>
-                  </button>
-                )) : <p>Проектов пока нет.</p>}
-              </div>
-            </article>
-
-            <article className="collection-panel">
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">Навигация</p>
-                  <h2>Библиотека</h2>
-                </div>
-              </div>
-              <div className="home-link-list">
-                <button type="button" className="home-link-item" onClick={() => { setLibraryTab('projects'); setScreen('library') }}>
-                  <strong>Все проекты</strong>
-                  <span>{projects.length}</span>
-                </button>
-                <button type="button" className="home-link-item" onClick={() => { setLibraryTab('folders'); setScreen('library') }}>
-                  <strong>Папки</strong>
-                  <span>{folders.length}</span>
-                </button>
-                <button type="button" className="home-link-item" onClick={() => { setLibraryTab('sets'); setScreen('library') }}>
-                  <strong>Наборы</strong>
-                  <span>{sets.length}</span>
-                </button>
-                <button type="button" className="home-link-item" onClick={() => { setLibraryTab('cards'); setScreen('library') }}>
-                  <strong>Все карточки</strong>
-                  <span>{cards.length}</span>
-                </button>
-              </div>
-            </article>
-          </section>
-        </section>
+        <DashboardHome
+          cards={cards}
+          projects={projects}
+          materials={materials}
+          workspace={workspace}
+          onOpenQuickCardFlow={openQuickCardFlow}
+          onOpenProject={openProject}
+          onOpenLibrary={(tab) => { setLibraryTab(tab); setScreen('library'); setActiveNav('library') }}
+          onOpenWorkspace={() => { openQuickCardFlow() }}
+          onAddVideo={() => { setIsProjectCreationOpen(true) }}
+        />
       ) : screen === 'library' ? (
         <section className="library-shell collection-panel">
           <div className="panel-heading">
@@ -1896,116 +1828,150 @@ function App() {
             />
           ) : null}
 
-          <section className="workspace">
-            <CardEditorPanel
-              activeSuggestions={activeSuggestions}
-              activeTranscriptIndex={activeTranscriptIndex}
-              draft={draft}
-              englishFieldId={englishFieldId}
-              imageFieldId={imageFieldId}
-              isEditing={isEditing}
-              isLoadingTranscript={isLoadingTranscript}
-              isTranslating={isTranslating}
-              loadTranscriptFromYouTubeUrl={loadTranscriptFromYouTubeUrl}
-              matchCandidates={matchCandidates}
-              onFindPhrase={handleFindPhrase}
-              onImageSearch={openGoogleImageSearch}
-              onPreviewTimeChange={setPlayerCurrentTime}
-              onResetForm={resetForm}
-              onSelectMatchCandidate={selectMatchCandidate}
-              onSubmit={handleSubmit}
-              playFromTranscriptSeconds={playFromTranscriptSeconds}
-              onTranslateEnToRu={handleTranslateEnToRu}
-              onTranslateRuToEn={handleTranslateRuToEn}
-              onTranscriptLineClick={handleTranscriptLineClick}
-              parsedTranscript={parsedTranscript}
-              previewPhraseEndSeconds={previewPhraseEndSeconds}
-              previewPhraseStartSeconds={previewPhraseStartSeconds}
-              previewSceneEndSeconds={previewSceneEndSeconds}
-              previewSceneStartSeconds={previewSceneStartSeconds}
-              russianFieldId={russianFieldId}
-              selectedMatchIndex={selectedMatchIndex}
-              showContextEditor={showContextEditor}
-              transcriptEntryRefs={transcriptEntryRefs}
-              transcriptError={transcriptError}
-              translationFallbackNote={translationFallbackNote}
-              translationProvider={translationProvider}
-              updateDraft={updateDraft}
-              youtubeFieldId={youtubeFieldId}
-            />
+          <nav className="workspace-tabs" aria-label="Рабочие вкладки">
+            <button
+              type="button"
+              className={`ghost-button${workspaceTab === 'editor' ? ' is-active' : ''}`}
+              onClick={() => setWorkspaceTab('editor')}
+            >
+              ✏️ Редактор
+            </button>
+            <button
+              type="button"
+              className={`ghost-button${workspaceTab === 'preview' ? ' is-active' : ''}`}
+              onClick={() => setWorkspaceTab('preview')}
+            >
+              👁️ Просмотр
+            </button>
+            <button
+              type="button"
+              className={`ghost-button${workspaceTab === 'collection' ? ' is-active' : ''}`}
+              onClick={() => setWorkspaceTab('collection')}
+            >
+              🗂️ Коллекция
+            </button>
+          </nav>
 
-            <CardPreviewPanel
-              autoPlayAudio={autoPlayAudio}
-              dictionaryError={dictionaryError}
-              dictionaryResult={dictionaryResult}
-              dictionaryWord={dictionaryWord}
-              hasContextScene={hasContextScene}
-              isDictionaryLoading={isDictionaryLoading}
-              isFlipped={isFlipped}
-              onAutoPlayChange={setAutoPlayAudio}
-              onDictionaryLookup={handleDictionaryLookup}
-              onDictionaryWordChange={setDictionaryWord}
-              onSpeakText={speakText}
-              onToggleCardSide={toggleCardSide}
-              selectedCard={selectedCard}
-              speakingKey={speakingKey}
-              updateDraft={(field, value) => updateDraft(field, value)}
-            />
-          </section>
+          {workspaceTab === 'editor' ? (
+            <section className="workspace-section" aria-label="Редактор карточки">
+              <CardEditorPanel
+                activeSuggestions={activeSuggestions}
+                activeTranscriptIndex={activeTranscriptIndex}
+                draft={draft}
+                englishFieldId={englishFieldId}
+                imageFieldId={imageFieldId}
+                isEditing={isEditing}
+                isLoadingTranscript={isLoadingTranscript}
+                isTranslating={isTranslating}
+                loadTranscriptFromYouTubeUrl={loadTranscriptFromYouTubeUrl}
+                matchCandidates={matchCandidates}
+                onFindPhrase={handleFindPhrase}
+                onImageSearch={openGoogleImageSearch}
+                onPreviewTimeChange={setPlayerCurrentTime}
+                onResetForm={resetForm}
+                onSelectMatchCandidate={selectMatchCandidate}
+                onSubmit={handleSubmit}
+                playFromTranscriptSeconds={playFromTranscriptSeconds}
+                onTranslateEnToRu={handleTranslateEnToRu}
+                onTranslateRuToEn={handleTranslateRuToEn}
+                onTranscriptLineClick={handleTranscriptLineClick}
+                parsedTranscript={parsedTranscript}
+                previewPhraseEndSeconds={previewPhraseEndSeconds}
+                previewPhraseStartSeconds={previewPhraseStartSeconds}
+                previewSceneEndSeconds={previewSceneEndSeconds}
+                previewSceneStartSeconds={previewSceneStartSeconds}
+                russianFieldId={russianFieldId}
+                selectedMatchIndex={selectedMatchIndex}
+                showContextEditor={showContextEditor}
+                transcriptEntryRefs={transcriptEntryRefs}
+                transcriptError={transcriptError}
+                translationFallbackNote={translationFallbackNote}
+                translationProvider={translationProvider}
+                updateDraft={updateDraft}
+                youtubeFieldId={youtubeFieldId}
+              />
+            </section>
+          ) : null}
 
-          <CardCollectionPanel
-            canStartQuiz={canStartQuiz}
-            cards={visibleCards}
-            mode={currentSetViewMode}
-            onCardDragStart={(cardId, event) => beginDrag(event, { type: 'card', id: cardId })}
-            onEdit={startEditing}
-            onRemove={removeCard}
-            onSelect={selectCard}
-            onStartQuiz={startQuiz}
-            onViewModeChange={selectedSet ? (mode) => setSetViewMode(selectedSet.id, mode) : undefined}
-            selectedCardId={selectedCard?.id ?? null}
-          />
+          {workspaceTab === 'preview' ? (
+            <section className="workspace-section" aria-label="Просмотр карточки">
+              <CardPreviewPanel
+                autoPlayAudio={autoPlayAudio}
+                dictionaryError={dictionaryError}
+                dictionaryResult={dictionaryResult}
+                dictionaryWord={dictionaryWord}
+                hasContextScene={hasContextScene}
+                isDictionaryLoading={isDictionaryLoading}
+                isFlipped={isFlipped}
+                onAutoPlayChange={setAutoPlayAudio}
+                onDictionaryLookup={handleDictionaryLookup}
+                onDictionaryWordChange={setDictionaryWord}
+                onSpeakText={speakText}
+                onToggleCardSide={toggleCardSide}
+                selectedCard={selectedCard}
+                speakingKey={speakingKey}
+                updateDraft={(field, value) => updateDraft(field, value)}
+              />
+            </section>
+          ) : null}
 
-          <section className="collection-panel set-drop-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="panel-kicker">Наборы</p>
-                <h2>Добавить карточку в другой набор</h2>
-              </div>
-            </div>
-            <div className="cards-grid">
-              {sets.map((set) => (
-                <article
-                  key={set.id}
-                  className="mini-card mini-card--drop-target"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    const payload = readDragPayload(event)
-                    if (payload?.type === 'card') {
-                      addCardToSet(payload.id, set.id)
-                    }
-                  }}
-                >
-                  <div className="mini-card-copy">
-                    <div className="mini-card-copy-head">
-                      <h3>{set.name}</h3>
-                      <span className="mini-card-context-badge">{set.kind}</span>
-                    </div>
-                    <p>{set.cardIds.length} карточек</p>
+          {workspaceTab === 'collection' ? (
+            <>
+              <CardCollectionPanel
+                canStartQuiz={canStartQuiz}
+                cards={visibleCards}
+                mode={currentSetViewMode}
+                onCardDragStart={(cardId, event) => beginDrag(event, { type: 'card', id: cardId })}
+                onEdit={startEditing}
+                onRemove={removeCard}
+                onSelect={selectCard}
+                onStartQuiz={startQuiz}
+                onViewModeChange={selectedSet ? (mode) => setSetViewMode(selectedSet.id, mode) : undefined}
+                selectedCardId={selectedCard?.id ?? null}
+              />
+
+              <section className="collection-panel set-drop-panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="panel-kicker">Наборы</p>
+                    <h2>Добавить карточку в другой набор</h2>
                   </div>
-                  {selectedCard ? (
-                    <button type="button" className="ghost-button" onClick={() => addCardToSet(selectedCard.id, set.id)}>
-                      Добавить выбранную
-                    </button>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </section>
+                </div>
+                <div className="cards-grid">
+                  {sets.map((set) => (
+                    <article
+                      key={set.id}
+                      className="mini-card mini-card--drop-target"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        const payload = readDragPayload(event)
+                        if (payload?.type === 'card') {
+                          addCardToSet(payload.id, set.id)
+                        }
+                      }}
+                    >
+                      <div className="mini-card-copy">
+                        <div className="mini-card-copy-head">
+                          <h3>{set.name}</h3>
+                          <span className="mini-card-context-badge">{set.kind}</span>
+                        </div>
+                        <p>{set.cardIds.length} карточек</p>
+                      </div>
+                      {selectedCard ? (
+                        <button type="button" className="ghost-button" onClick={() => addCardToSet(selectedCard.id, set.id)}>
+                          Добавить выбранную
+                        </button>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : null}
         </>
       )}
-    </main>
+    </AppShell>
   )
 }
 

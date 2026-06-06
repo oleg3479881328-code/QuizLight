@@ -393,3 +393,38 @@ Evidence:
 
 Next Step:
 Update `AI_COORDINATION_STATE.md` to Issue #8 as the active channel, post the required signed acknowledgement in Issue #8, and begin the migration-safe workspace-model implementation.
+
+## 2026-06-06 09:26 America/New_York
+
+Actor: Cline (Codex Agent)
+Type: Dashboard v1 Implemented — Issue #10
+Project: QuizLight
+
+Summary:
+Implemented Dashboard v1 as the application home screen with AppShell sidebar navigation and light/dark theme toggle. Created AppShell.tsx (persistent left sidebar with 5 nav items, theme toggle, mobile hamburger menu) and DashboardHome.tsx (header, continue-learning block with 3 states, quick actions, statistics, recent cards, recent materials). Restructured App.tsx render function to wrap content in AppShell and use DashboardHome as the default home view. All existing workspace functionality preserved.
+
+Evidence:
+- New files: src/components/AppShell.tsx, src/components/DashboardHome.tsx
+- Modified files: src/App.tsx, src/App.css
+- Validation: `npm run build` — 0 errors (34 modules)
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/10
+
+Next Step:
+Post execution report to GitHub Issue #10 and push commit to origin/master.
+
+## 2026-06-06 09:54 America/New_York
+
+Actor: Cline (Codex Agent)
+Type: Build Fixes Applied — Workspace Tabs Cleanup
+Project: QuizLight
+
+Summary:
+Fixed remaining build errors after workspace tab separation. Removed unused `createTextPreview` import from `DashboardHome.tsx` and unused `recentProjects` variable from `App.tsx`. Build now passes with 0 errors (33 modules).
+
+Evidence:
+- Modified files: src/components/DashboardHome.tsx, src/App.tsx
+- Validation: `npm run build` — 0 errors (33 modules)
+- Active channel: https://github.com/oleg3479881328-code/QuizLight/issues/10
+
+Next Step:
+Project ready for handoff to next agent. Push commit to origin/master and post execution report in Issue #10.
