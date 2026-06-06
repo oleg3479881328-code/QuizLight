@@ -168,6 +168,80 @@ export function findPhraseInTranscript(
 }
 
 /**
+ * Check if text looks like the end of a sentence.
+ */
+function isSentenceEnd(text: string): boolean {
+  const trimmed = text.trim()
+  return /[.?!]$/.test(trimmed) || trimmed.endsWith('...')
+}
+
+/**
+ * Check if there's a significant pause between two transcript entries (>1.0s gap).
+ */
+function hasSignificantPause(current: TranscriptEntry, next: TranscriptEntry): boolean {
+  return next.start - current.end > 1.0
+}
+
+/**
+ * Extract a complete sentence/phrase around a clicked transcript entry.
+ *
+ * YouTube transcripts are often split into short segments (2-5 words).
+ * This function merges adjacent segments into a whole sentence by:
+ * - expanding backward to the start of the sentence (after previous . ! ? or pause)
+ * - expanding forward to the end of the sentence (before next . ! ? or pause)
+ *
+ * @returns The merged full sentence text and the adjusted start/end timestamps.
+ */
+export function extractFullPhrase(
+  transcript: TranscriptEntry[],
+  clickIndex: number,
+): { text: string; start: number; end: number } {
+  if (transcript.length === 0) {
+    return { text: '', start: 0, end: 0 }
+  }
+
+  // Expand backward to find sentence start
+  let sentenceStart = clickIndex
+  for (let i = clickIndex - 1; i >= 0; i--) {
+    const prevText = transcript[i].text.trim()
+    // Stop if previous segment ends a sentence
+    if (isSentenceEnd(prevText)) break
+    // Stop if there's a significant pause
+    if (hasSignificantPause(transcript[i], transcript[i + 1])) break
+    sentenceStart = i
+  }
+
+  // Expand forward to find sentence end
+  let sentenceEnd = clickIndex
+  for (let i = clickIndex; i < transcript.length - 1; i++) {
+    const currentText = transcript[i].text.trim()
+    // Stop if current segment ends a sentence
+    if (isSentenceEnd(currentText)) {
+      sentenceEnd = i
+      break
+    }
+    // Stop if there's a significant pause
+    if (hasSignificantPause(transcript[i], transcript[i + 1])) {
+      sentenceEnd = i
+      break
+    }
+    sentenceEnd = i + 1
+  }
+
+  // Merge text and calculate timestamps
+  const mergedText = transcript
+    .slice(sentenceStart, sentenceEnd + 1)
+    .map((e) => e.text.trim())
+    .join(' ')
+
+  return {
+    text: mergedText,
+    start: transcript[sentenceStart].start,
+    end: transcript[sentenceEnd].end,
+  }
+}
+
+/**
  * Extract context window around a matched transcript entry.
  */
 export function extractContextWindow(

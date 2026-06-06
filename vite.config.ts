@@ -582,15 +582,15 @@ Include multiple translations for different meanings. Sort by confidence descend
                 return
               }
 
-              const systemPrompt = `You are a language learning assistant. Given an English phrase from a YouTube video, provide a sense block (context, meaning, usage) for the learner.
+              const systemPrompt = `You are a language learning assistant for Russian speakers. Given an English phrase from a YouTube video, provide a sense block (context, meaning, usage) in Russian.
 
 Respond with a valid JSON object (no markdown, no code fences) in this exact format:
 {
-  "situation": "brief description of when this phrase is used",
-  "intent": "what the speaker intends to convey",
-  "tone": "the emotional tone (e.g. neutral, formal, casual, excited)",
-  "sense": "a clear explanation of the meaning in simple English",
-  "usageNote": "any grammatical or cultural usage notes"
+  "situation": "краткое описание ситуации, когда используется эта фраза (на русском)",
+  "intent": "что говорящий хочет выразить (на русском)",
+  "tone": "эмоциональный тон (например: нейтральный, формальный, неформальный, восторженный) (на русском)",
+  "sense": "понятное объяснение смысла простым русским языком",
+  "usageNote": "грамматические или культурные примечания по использованию (на русском)"
 }`
 
               const userPrompt = JSON.stringify({

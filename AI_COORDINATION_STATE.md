@@ -16,14 +16,15 @@ Do not copy the full discussion history into this file.
 
 ## Active Channel
 
-GitHub Issue #3:
-https://github.com/oleg3479881328-code/QuizLight/issues/3
+GitHub Issue #8:
+https://github.com/oleg3479881328-code/QuizLight/issues/8
 
 ## Previous Channels
 
 - GitHub Issue #1 — archived for new messages because the thread became too long for reliable connector reading.
 - GitHub Issue #2 — Azure Translator review channel; retained as completed technical history for the deferred Azure layer.
-- GitHub Issue #3 — active channel for DeepSeek API integration, executor reports, blockers, questions, and reviewer replies.
+- GitHub Issue #3 — completed channel for DeepSeek API integration and bounded reviewer coordination.
+- GitHub Issue #8 — active channel for the text-learning projects, folders, sets, and library MVP workstream.
 
 ## Active Participants
 
@@ -35,63 +36,66 @@ The executor role is model-neutral. A future executor may be Codex, DeepSeek, Cl
 
 ## Current Task
 
-DeepSeek integration for the personal testing phase — completed and accepted.
+Implement the bounded text-learning projects, folders, sets, and library MVP from Issue #8.
 
 ## Current Repository State
 
-Accepted implementation baseline:
+Accepted implementation baseline for the active workstream:
 
-`2210ff06763f551e40017e89c1600d25d4e083b2` — fix: guard provider ui for stale transcript results
+`f96bcbb4d223da8bc6f95317205c62e3f34dad29` — accepted post-PR #7 base named by ChatGPT in Issue #8 activation
+
+Current executor branch:
+
+`codex/issue-8-text-learning-library-mvp`
 
 Working tree status:
 
-`CLEAN` — bookkeeping closure only, no pending implementation changes in the working tree
+`IN_PROGRESS` — Issue #8 activated; coordination files updated and implementation branch opened
 
 Current coordination status:
 
-`COMPLETED_AND_ACCEPTED — current DeepSeek integration task is accepted in GitHub Issue #3`
+`ACTIVE_IMPLEMENTATION — Issue #8 is the active bounded execution channel`
 
 
-## Accepted Decisions (Issue #3)
+## Accepted Decisions Carried Forward
 
 - DeepSeek is the single active AI provider for this phase.
 - Azure code is preserved but not configured or called by default.
 - Server-side secret: `DEEPSEEK_API_KEY` (not exposed via `VITE_`).
 - Model: `deepseek-v4-flash` (thinking disabled, temperature 0.3).
 - Provider policy: DeepSeek API → local fallback.
-- Bounded Issue #3 scope only — no auth, deployment, billing UI, database, or unrelated features.
+- Existing YouTube transcript, scene playback, speech, dictionary lookup, and quiz behavior must be preserved while expanding the local-first workspace model.
+- Bounded execution remains in force — no auth, cloud sync, billing, marketplace, classroom features, or unrelated product expansion.
 
-## Active DeepSeek Scope
+## Active Scope (Issue #8)
 
-- manual RU → EN translation
-- manual EN → RU translation
-- dictionary lookup
-- YouTube transcript phrase translation
-- AI-generated sense block
-- runtime token logging (via DeepSeek API response)
-- runtime cache-hit/cache-miss logging (via DeepSeek API response)
+- migration-safe local-first workspace model with folders, learning projects, materials, sets, Inbox, and source-linked cards
+- home screen prioritizing continue-work and quick entry points
+- library surface with tabs for projects, folders, sets, and all cards
+- project creation from YouTube, pasted text, and TXT upload
+- text material reading and selection flow into reviewed draft cards
+- required desktop drag-and-drop convenience paths
+- backward-compatible loading of existing stored cards
+- preservation of DeepSeek / local fallback translation and sense-block behavior
 
 ## Implementation Summary
 
-### Files Changed (8 files, +395/-142 lines)
+Current Issue #8 implementation has been activated but not yet committed. The immediate required bookkeeping steps are complete:
 
-1. **vite.config.ts** — Added DeepSeek dev-server middleware for `/api/translate` and `/api/dictionary-lookup`. Azure code preserved as commented-out deferred compatibility block.
-2. **translationService.ts** — Calls DeepSeek via middleware, falls back to local suggestions. All Azure references replaced.
-3. **types.ts** — Removed `'azure'` from `TranslationResult.provider` and `DictionaryLookupResult.provider` union types.
-4. **App.tsx** — All 6 Azure references replaced with DeepSeek. Provider labels show `'DeepSeek'` or `'Локальная подсказка'`.
-5. **.env.example** — `DEEPSEEK_API_KEY` primary, Azure deferred.
-6. **AI_COORDINATION_STATE.md** — Updated for DeepSeek transition.
-7. **AI_COORDINATION_LOG.md** — Updated for DeepSeek transition.
-8. **src/App.css** — Minor styling adjustments.
+1. active AI-to-AI channel moved to Issue #8
+2. accepted base commit recorded from the ChatGPT activation notice
+3. executor branch created for the new workstream
+4. next implementation focus set to the migration-safe workspace model
 
 ### Validation
 
-- `npm run build` — 0 errors ✅
-- `npm run lint` — 0 new errors (2 pre-existing warnings only) ✅
+- activation / coordination checks only so far
+- implementation validation pending after the first bounded code pass
 
 ## Open Review Items
 
-No open review items remain for the current DeepSeek integration task in Issue #3.
+- no blocking review items on the completed DeepSeek task
+- active review will occur through Issue #8 for the new workstream
 
 ## API Model Runtime Check
 
@@ -110,27 +114,21 @@ Runtime logging implemented: Yes — all 3 endpoints (translate, dictionary, sen
 ## Required Validation
 
 ```text
-npm run build
 npm run lint
+npm run build
 ```
 
-Manual checks with DeepSeek configured:
+Manual checks for Issue #8 include at minimum:
 
 ```text
-1. Manual EN -> RU translation uses DeepSeek label.
-2. Manual RU -> EN translation uses DeepSeek label.
-3. Dictionary lookup returns structured alternatives.
-4. Transcript phrase click fills translation and AI-generated sense block.
-5. Phrase A then phrase B quickly -> stale A response ignored.
-6. YouTube playback still works.
-```
-
-Manual checks without DeepSeek key:
-
-```text
-1. Translation falls back locally.
-2. UI shows local fallback note.
-3. App remains usable.
+1. legacy card data loads
+2. quick card -> Inbox
+3. YouTube project creation -> default set -> transcript card save
+4. text project creation from paste -> selection -> reviewed save
+5. TXT upload -> material open -> selection -> reviewed save
+6. nested folder creation and breadcrumbs
+7. card -> set multi-membership without duplicate card records
+8. YouTube transcript, DeepSeek fallback, dictionary, speech, and quiz regression checks
 ```
 
 ## Communication Protocol
@@ -141,14 +139,14 @@ This project follows the Project Execution OS communication-channel protocol:
 2. **Channel selection**: `docs/AI_COORDINATION_HUB_STANDARD.md` — GitHub selected as active channel
 3. **GitHub protocol**: `docs/integrations/chatgpt/CODEX_GITHUB_PROTOCOL.md` → `docs/CHATGPT_CODEX_GITHUB_PROTOCOL.md`
 
-All durable AI-to-AI messages go through the active GitHub channel (Issue #3).
+All durable AI-to-AI messages go through the active GitHub channel (Issue #8).
 Executor posts structured Execution Reports as comments in the named reply surface.
 ChatGPT reads and reviews through GitHub.
 The user is not the normal relay for AI-to-AI coordination.
 
 ## Next Step
 
-Resume the paused design-architecture workstream in PR #5 and align it to the actual current QuizLight product surface.
+Post the signed acknowledgement in Issue #8, then implement the migration-safe local workspace model and first text-learning/library slice without regressing the current YouTube and DeepSeek flows.
 
 
 ## Update Rule

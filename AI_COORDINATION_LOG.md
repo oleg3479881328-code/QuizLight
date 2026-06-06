@@ -374,3 +374,22 @@ Evidence:
 
 Next Step:
 Resume the paused design-architecture workstream in PR #5 and align it to the actual current QuizLight product surface.
+
+## 2026-06-06 05:46:00 America/New_York
+
+Actor: Codex
+Type: Channel Transition and Workstream Activation
+Project: QuizLight
+
+Summary:
+Transitioned the active AI-to-AI coordination line to Issue #8 after the frontend design refactor in PR #7 was accepted and merged. Issue #8 is now the active bounded implementation workstream for text-learning projects, folders, sets, and the simplified library MVP.
+
+Evidence:
+- Previously accepted design PR: https://github.com/oleg3479881328-code/QuizLight/pull/7
+- PR #7 acceptance notice: https://github.com/oleg3479881328-code/QuizLight/pull/7#issuecomment-4636543457
+- Issue #8 activation notice: https://github.com/oleg3479881328-code/QuizLight/issues/8#issuecomment-4636551462
+- Accepted base commit named by ChatGPT: `f96bcbb4d223da8bc6f95317205c62e3f34dad29`
+- New executor branch: `codex/issue-8-text-learning-library-mvp`
+
+Next Step:
+Update `AI_COORDINATION_STATE.md` to Issue #8 as the active channel, post the required signed acknowledgement in Issue #8, and begin the migration-safe workspace-model implementation.

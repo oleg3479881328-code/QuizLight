@@ -1,22 +1,29 @@
+import type { DragEvent } from 'react'
 import type { Card } from '../types'
 
 type CardCollectionPanelProps = {
   canStartQuiz: boolean
   cards: Card[]
+  mode?: 'cards' | 'list'
+  onCardDragStart?: (cardId: string, event: DragEvent<HTMLElement>) => void
   onEdit: (card: Card) => void
   onRemove: (cardId: string) => void
   onSelect: (cardId: string) => void
   onStartQuiz: () => void
+  onViewModeChange?: (mode: 'cards' | 'list') => void
   selectedCardId: string | null
 }
 
 export default function CardCollectionPanel({
   canStartQuiz,
   cards,
+  mode = 'cards',
+  onCardDragStart,
   onEdit,
   onRemove,
   onSelect,
   onStartQuiz,
+  onViewModeChange,
   selectedCardId,
 }: CardCollectionPanelProps) {
   return (
@@ -41,16 +48,37 @@ export default function CardCollectionPanel({
         </button>
       </div>
 
+      {onViewModeChange ? (
+        <div className="collection-view-toggle">
+          <button
+            type="button"
+            className={`ghost-button${mode === 'cards' ? ' is-active' : ''}`}
+            onClick={() => onViewModeChange('cards')}
+          >
+            Карточки
+          </button>
+          <button
+            type="button"
+            className={`ghost-button${mode === 'list' ? ' is-active' : ''}`}
+            onClick={() => onViewModeChange('list')}
+          >
+            Список
+          </button>
+        </div>
+      ) : null}
+
       {cards.length > 0 ? (
-        <div className="cards-grid">
+        <div className={mode === 'list' ? 'collection-list' : 'cards-grid'}>
           {cards.map((card) => {
             const isSelected = card.id === selectedCardId
 
             return (
               <article
                 key={card.id}
-                className={`mini-card${isSelected ? ' is-selected' : ''}`}
+                className={`mini-card${isSelected ? ' is-selected' : ''}${mode === 'list' ? ' mini-card--list' : ''}`}
                 onClick={() => onSelect(card.id)}
+                draggable={Boolean(onCardDragStart)}
+                onDragStart={(event) => onCardDragStart?.(card.id, event)}
               >
                 <div className="mini-card-copy">
                   {card.imageUrl ? (
