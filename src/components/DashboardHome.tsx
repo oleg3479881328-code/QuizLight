@@ -11,6 +11,8 @@ type DashboardHomeProps = {
   onOpenLibrary: (tab: 'projects' | 'folders' | 'sets' | 'cards') => void
   onOpenWorkspace: () => void
   onAddVideo: () => void
+  onOpenCard: (cardId: string) => void
+  onOpenMaterial: (projectId: string, materialId: string) => void
 }
 
 function formatTime(isoString: string): string {
@@ -35,6 +37,8 @@ export default function DashboardHome({
   onOpenLibrary,
   onOpenWorkspace,
   onAddVideo,
+  onOpenCard,
+  onOpenMaterial,
 }: DashboardHomeProps) {
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -200,7 +204,7 @@ export default function DashboardHome({
           onClick={() => onOpenLibrary('projects')}
         >
           <span className="dashboard-action-icon">📂</span>
-          <span className="dashboard-action-label">Библиотека</span>
+          <span className="dashboard-action-label">Моя библиотека</span>
           <span className="dashboard-action-desc">Проекты, наборы и все карточки</span>
         </button>
       </div>
@@ -256,13 +260,7 @@ export default function DashboardHome({
               key={card.id}
               type="button"
               className="dashboard-recent-card"
-              onClick={() => {
-                onOpenWorkspace()
-                // Small delay to let workspace mount, then select card
-                setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent('quizlight:select-card', { detail: { cardId: card.id } }))
-                }, 100)
-              }}
+              onClick={() => onOpenCard(card.id)}
             >
               <div className="dashboard-recent-card-langs">
                 <span className="dashboard-recent-card-ru">{card.russian}</span>
@@ -298,19 +296,40 @@ export default function DashboardHome({
       </div>
       {recentMaterials.length > 0 ? (
         <div className="dashboard-recent-materials">
-          {recentMaterials.map((material) => (
-            <div key={material.title} className="dashboard-recent-material">
-              <div className="dashboard-recent-material-info">
-                <strong className="dashboard-recent-material-title">{material.title}</strong>
-                <span className="dashboard-recent-material-count">
-                  {material.cardCount} карточек
-                </span>
-              </div>
-              {material.youtubeUrl && (
-                <span className="dashboard-source-badge">YouTube</span>
-              )}
-            </div>
-          ))}
+          {recentMaterials.map((material) => {
+            // Find the real material record to get projectId
+            const realMaterial = materials.find(
+              (m) => m.title === material.title || m.youtubeUrl === material.youtubeUrl
+            )
+            return (
+              <button
+                key={material.title}
+                type="button"
+                className="dashboard-recent-material"
+                onClick={() => {
+                  if (realMaterial) {
+                    onOpenMaterial(realMaterial.projectId, realMaterial.id)
+                  }
+                }}
+                disabled={!realMaterial}
+              >
+                <div className="dashboard-recent-material-info">
+                  <strong className="dashboard-recent-material-title">{material.title}</strong>
+                  <span className="dashboard-recent-material-count">
+                    {material.cardCount} карточек
+                  </span>
+                </div>
+                <div className="dashboard-recent-material-actions">
+                  {material.youtubeUrl && (
+                    <span className="dashboard-source-badge">YouTube</span>
+                  )}
+                  {realMaterial && (
+                    <span className="dashboard-text-button">Открыть →</span>
+                  )}
+                </div>
+              </button>
+            )
+          })}
         </div>
       ) : (
         <div className="dashboard-empty-state">
@@ -334,6 +353,13 @@ export default function DashboardHome({
             Быстрые карточки, контекст из видео и лёгкое повторение — всё в одном рабочем пространстве.
           </p>
         </div>
+        <button
+          type="button"
+          className="dashboard-primary-button"
+          onClick={onOpenQuickCardFlow}
+        >
+          ✏️ Новая карточка
+        </button>
       </header>
 
       {continueBlock}

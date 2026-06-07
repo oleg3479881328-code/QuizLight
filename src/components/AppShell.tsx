@@ -12,7 +12,7 @@ type AppShellProps = {
 
 const navItems: { id: NavItem; label: string; icon: string }[] = [
   { id: 'home', label: 'Главная', icon: '🏠' },
-  { id: 'library', label: 'Библиотека', icon: '📚' },
+  { id: 'library', label: 'Моя библиотека', icon: '📚' },
   { id: 'cards', label: 'Все карточки', icon: '🗂️' },
   { id: 'sets', label: 'Наборы', icon: '📁' },
   { id: 'materials', label: 'Материалы', icon: '📹' },
