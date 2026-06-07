@@ -71,7 +71,7 @@ type QuizState = {
 }
 
 type Screen = 'home' | 'library' | 'workspace' | 'project' | 'set'
-type LibraryTab = 'projects' | 'folders' | 'sets' | 'cards'
+type LibraryTab = 'projects' | 'folders' | 'sets' | 'cards' | 'materials'
 type WorkspaceTab = 'editor' | 'preview' | 'collection'
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -1499,17 +1499,21 @@ function App() {
     }
   }, [activeTranscriptIndex])
 
-  // Listen for card selection events from DashboardHome
-  useEffect(() => {
-    function onSelectCard(event: Event) {
-      const detail = (event as CustomEvent).detail as { cardId: string } | undefined
-      if (!detail?.cardId) return
-      setSelectedId(detail.cardId)
-      setWorkspaceTab('preview')
-    }
-    window.addEventListener('quizlight:select-card', onSelectCard)
-    return () => window.removeEventListener('quizlight:select-card', onSelectCard)
-  }, [])
+  function handleOpenCard(cardId: string) {
+    const card = cards.find((c) => c.id === cardId)
+    if (!card) return
+    // Restore the card's project/material/set context
+    if (card.projectId) setSelectedProjectId(card.projectId)
+    if (card.materialId) setSelectedMaterialId(card.materialId)
+    if (card.setIds?.[0]) setSelectedSetId(card.setIds[0])
+    setSelectedId(cardId)
+    setWorkspaceTab('preview')
+    setScreen('workspace')
+  }
+
+  function handleOpenMaterial(projectId: string, materialId: string) {
+    openProject(projectId, materialId)
+  }
 
   function handleNavigate(item: NavItem) {
     setActiveNav(item)
@@ -1530,7 +1534,7 @@ function App() {
         break
       case 'materials':
         setScreen('library')
-        setLibraryTab('projects')
+        setLibraryTab('materials')
         break
     }
   }
@@ -1555,6 +1559,8 @@ function App() {
           onOpenLibrary={(tab) => { setLibraryTab(tab); setScreen('library'); setActiveNav('library') }}
           onOpenWorkspace={() => { openQuickCardFlow() }}
           onAddVideo={() => { setIsProjectCreationOpen(true) }}
+          onOpenCard={handleOpenCard}
+          onOpenMaterial={handleOpenMaterial}
         />
       ) : screen === 'library' ? (
         <section className="library-shell collection-panel">
@@ -1574,6 +1580,7 @@ function App() {
               <button type="button" className={`ghost-button${libraryTab === 'folders' ? ' is-active' : ''}`} onClick={() => setLibraryTab('folders')}>Папки</button>
               <button type="button" className={`ghost-button${libraryTab === 'sets' ? ' is-active' : ''}`} onClick={() => setLibraryTab('sets')}>Наборы</button>
               <button type="button" className={`ghost-button${libraryTab === 'cards' ? ' is-active' : ''}`} onClick={() => setLibraryTab('cards')}>Все карточки</button>
+              <button type="button" className={`ghost-button${libraryTab === 'materials' ? ' is-active' : ''}`} onClick={() => setLibraryTab('materials')}>Материалы</button>
             </div>
             <input
               type="search"
@@ -1705,10 +1712,33 @@ function App() {
             </div>
           ) : null}
 
+          {libraryTab === 'materials' ? (
+            <div className="cards-grid">
+              {materials.length > 0 ? materials.map((material) => (
+                <article key={material.id} className="mini-card">
+                  <div className="mini-card-copy">
+                    <div className="mini-card-copy-head">
+                      <h3>{material.title}</h3>
+                      <span className="mini-card-context-badge">{material.type === 'text' ? 'Text' : 'YouTube'}</span>
+                    </div>
+                    <p>{material.type === 'text' ? createTextPreview(material.textContent ?? '') : material.youtubeUrl}</p>
+                  </div>
+                  <div className="mini-card-actions">
+                    <button type="button" className="ghost-button" onClick={() => openProject(material.projectId, material.id)}>
+                      Продолжить
+                    </button>
+                  </div>
+                </article>
+              )) : (
+                <p>Материалов пока нет. Добавьте YouTube-видео или текст через создание проекта.</p>
+              )}
+            </div>
+          ) : null}
+
           {libraryTab === 'cards' ? (
             <div className="cards-grid">
               {filteredCards.map((card) => (
-                <article key={card.id} className="mini-card" onClick={() => { setSelectedId(card.id); setScreen('workspace') }}>
+                <article key={card.id} className="mini-card" onClick={() => handleOpenCard(card.id)}>
                   <div className="mini-card-copy">
                     <div className="mini-card-copy-head">
                       <h3>{card.russian}</h3>
