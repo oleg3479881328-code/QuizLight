@@ -200,7 +200,7 @@ export default function DashboardHome({
           onClick={() => onOpenLibrary('projects')}
         >
           <span className="dashboard-action-icon">📂</span>
-          <span className="dashboard-action-label">Библиотека</span>
+          <span className="dashboard-action-label">Моя библиотека</span>
           <span className="dashboard-action-desc">Проекты, наборы и все карточки</span>
         </button>
       </div>

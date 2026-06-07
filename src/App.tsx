@@ -1560,7 +1560,7 @@ function App() {
         <section className="library-shell collection-panel">
           <div className="panel-heading">
             <div>
-              <p className="panel-kicker">Библиотека</p>
+              <p className="panel-kicker">Моя библиотека</p>
               <h2>Проекты, папки, наборы и карточки</h2>
               <p className="panel-description">
                 Поиск остаётся единым, а структура открывается по слоям без перегруженного дерева.
